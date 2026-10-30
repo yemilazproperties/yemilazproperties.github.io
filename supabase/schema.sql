@@ -1,4 +1,4 @@
--- Hearth property manager: initial Supabase schema
+-- Yemilaz Properties: initial Supabase schema
 -- Run in Supabase SQL Editor for a fresh project or as a one-time setup migration.
 -- Existing property rows need to be assigned to a landlord after account setup.
 -- Keep the service role key server-side only.

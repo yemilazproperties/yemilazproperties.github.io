@@ -1,4 +1,4 @@
-# Hearth Property Manager
+# Yemilaz Properties
 
 A first-pass property management dashboard for a landlord with a caretaker team and tenants. Supabase email/password sign-in and landlord property creation are connected. Other screens still use demo data and are not ready for real tenant records yet.
 
