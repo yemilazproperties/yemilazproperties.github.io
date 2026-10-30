@@ -1,0 +1,8 @@
+GitHub Pages upload
+1. Unzip this package directly into the root of your local yemilazproperties.github.io repository.
+2. Replace index.html and add or replace app.js, styles.css, config.js, and supabase-client.js.
+3. Run the separate property-manager-supabase.sql file once in Supabase SQL Editor.
+4. Create your first Auth user in Supabase, then promote that profile to landlord using the SQL in README.md.
+5. Add http://localhost:8000 and https://yemilazproperties.github.io to Supabase Auth allowed redirect URLs.
+6. Review the changed files in GitHub Desktop. Commit and push when you are ready.
+7. config.js has only the Supabase publishable key, which is designed to be public. Never add a Supabase secret/service-role key.
