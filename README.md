@@ -22,8 +22,8 @@ Then visit `http://localhost:8000`. Add this local URL and your GitHub Pages URL
 ## Supabase setup
 
 1. This starter is configured for project `qghumlexkybfndcrkgqk` in `eu-west-1` (Ireland).
-2. Run `supabase/schema.sql` in that project's SQL Editor. New Auth accounts get a tenant profile by default.
-3. Create your first Auth account in the Supabase Dashboard. In the SQL Editor, promote only your own account to landlord with `update public.profiles set role='landlord' where email='YOUR_EMAIL';`.
+2. Run the updated `supabase/schema.sql` in that project's SQL Editor. It adds `landlord_id` to an older `properties` table if it is missing; existing property rows are left untouched and will remain unassigned until you set their owner. New Auth accounts get a tenant profile by default.
+3. Create your first Auth account in the Supabase Dashboard. In the SQL Editor, promote only your own account to landlord with `update public.profiles set role='landlord' where email='YOUR_EMAIL';`. If you already have property rows from an earlier setup, first inspect them and then assign each row to your landlord profile (replace the email with yours): `update public.properties set landlord_id=(select id from public.profiles where email='YOUR_EMAIL' and role='landlord') where landlord_id is null and (select count(*) from public.profiles where email='YOUR_EMAIL' and role='landlord')=1;`.
 4. Sign in on the site with that account. The Properties page reads and creates records in Supabase.
 5. Add private Storage policies for the `rental-agreements` bucket before uploading any real agreements. Keep signed agreements private.
 6. The project URL and publishable key are in `config.js`. They are browser credentials and can be committed for GitHub Pages; they are not secrets. Keep RLS enabled and never add a Supabase secret/service-role key or email-provider credential to this repository.
