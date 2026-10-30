@@ -4,7 +4,7 @@ Yemilaz Properties is a Nigerian property management portal for landlords, caret
 
 ## What is connected
 
-- Landlords can add properties and units, invite tenants with lease details, assign caretakers to selected properties, upload private PDF agreements, review tenant acknowledgements, track maintenance, and record/confirm bank, cash, and POS payments.
+- Landlords can add and edit properties, upload private property photos, create units, invite tenants with lease details, assign caretakers to selected properties, upload private PDF agreements, review tenant acknowledgements, track maintenance, and record/confirm bank, cash, and POS payments.
 - Caretakers can see assigned properties, tenant and lease details for those properties, view agreements, and update maintenance requests.
 - Tenants can see their rental details and private agreements, acknowledge agreements, report maintenance, and submit payment records for landlord confirmation.
 - Supabase row-level security controls record access. Agreement files are held in a private bucket. Email invitations use Supabase Auth; agreement email notices use Resend through a server-side Edge Function.
@@ -24,7 +24,7 @@ Open `http://localhost:8000`. Keep PowerShell open while using the local site. P
 ## Supabase setup
 
 1. This package is configured for Supabase project `qghumlexkybfndcrkgqk` in `eu-west-1`. `config.js` contains only the project URL and publishable browser key; it must never contain a service-role key.
-2. In the Supabase Dashboard, open **SQL Editor**, paste all of `supabase/schema.sql`, and run it. It preserves existing records, replaces the older recursive policies on the app tables, creates the private `rental-agreements` Storage bucket, and adds access policies.
+2. In the Supabase Dashboard, open **SQL Editor**, paste all of `supabase/schema.sql`, and run it. It preserves existing records, replaces the older recursive policies on the app tables, creates private `rental-agreements` and `property-images` Storage buckets, and adds access policies. If your database already has the rest of the schema and only needs property photos and the missing rent column, run `supabase/property-images-migration.sql` instead.
 3. Confirm your own profile role is `landlord` in `public.profiles`. If needed, run this with your own email:
 
    ```sql

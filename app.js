@@ -4,11 +4,16 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 const money = value => new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(Number(value)||0);
 const dateText = value => value ? new Intl.DateTimeFormat('en-NG',{dateStyle:'medium',timeZone:'Africa/Lagos'}).format(new Date(`${value}T00:00:00`)) : '—';
 const today = () => new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Lagos'}).format(new Date());
-const state = {user:null,profile:null,properties:[],units:[],leases:[],profiles:[],assignments:[],agreements:[],maintenance:[],payments:[],allowed:new Set()};
+const state = {user:null,profile:null,properties:[],units:[],leases:[],profiles:[],assignments:[],agreements:[],maintenance:[],payments:[],allowed:new Set(),propertyImageUrls:new Map(),propertyRenderId:0};
 const client = () => window.hearthSupabase;
 const overviewGridTemplate = $('#view-overview .content-grid')?.innerHTML || '';
 
 function toast(message){const box=$('#toast');box.textContent=message;box.classList.add('show');setTimeout(()=>box.classList.remove('show'),4800);}
+function propertySchemaError(error){
+  const message=error?.message||String(error);
+  if(message.includes('monthly_rent')||message.includes('image_path'))return new Error(`Supabase is missing a property field required by this version. Run supabase/property-images-migration.sql in the Supabase SQL Editor, then reload. (${message})`);
+  return error;
+}
 function optionMarkup(rows,label){return rows.map(r=>`<option value="${esc(r.id)}">${esc(label(r))}</option>`).join('');}
 function propertyBy(id){return state.properties.find(p=>p.id===id);}
 function unitBy(id){return state.units.find(u=>u.id===id);}
@@ -64,13 +69,25 @@ async function loadWorkspace(){
   populateSelects();renderAll();
 }
 
-function renderProperties(filter=''){
+async function propertyImageUrl(path){
+  if(!path)return '';
+  const cached=state.propertyImageUrls.get(path);
+  if(cached&&cached.expiresAt>Date.now()+30000)return cached.url;
+  const {data,error}=await client().storage.from('property-images').createSignedUrl(path,3600);
+  if(error){console.warn('Could not load property photo:',error.message);return '';}
+  const result={url:data.signedUrl,expiresAt:Date.now()+3500000};state.propertyImageUrls.set(path,result);return result.url;
+}
+async function renderProperties(filter=''){
   const cards=$('#propertyCards');if(!cards)return;
   const q=filter.trim().toLowerCase();const list=state.properties.filter(p=>`${p.name} ${p.address} ${p.city} ${p.property_type}`.toLowerCase().includes(q));
+  const renderId=++state.propertyRenderId;
+  const imageUrls=await Promise.all(list.map(p=>propertyImageUrl(p.image_path)));
+  if(renderId!==state.propertyRenderId)return;
   cards.innerHTML=list.map((p,i)=>{
     const units=state.units.filter(u=>u.property_id===p.id);const occupied=new Set(state.leases.filter(l=>l.status==='active').map(l=>l.unit_id));
     const caretakers=state.assignments.filter(a=>a.property_id===p.id).map(a=>personBy(a.caretaker_id)?.full_name).filter(Boolean).join(', ')||'No caretaker assigned';
-    return `<article class="property-card"><div class="card-image thumb-${['one','two','three'][i%3]}"><span class="card-type">${esc((p.property_type||'residential').replace('_',' ').toUpperCase())}</span></div><div class="property-card-body"><h3>${esc(p.name)}</h3><p>⌖ &nbsp;${esc([p.address,p.city].filter(Boolean).join(', '))}</p><div class="card-stats"><span><b>${units.length}</b> total units</span><span><b>${units.filter(u=>occupied.has(u.id)).length}</b> occupied</span></div><div class="card-footer"><span>${money(p.monthly_rent)} <small style="font-weight:400;color:#929a92">/ month</small></span><small>${esc(caretakers)}</small></div></div></article>`;
+    const photo=imageUrls[i];
+    return `<article class="property-card"><div class="card-image thumb-${['one','two','three'][i%3]}${photo?' has-photo':''}">${photo?`<img src="${esc(photo)}" alt="Photo of ${esc(p.name)}" loading="lazy">`:''}<span class="card-type">${esc((p.property_type||'residential').replace('_',' ').toUpperCase())}</span>${state.profile?.role==='landlord'?`<button class="property-edit-button" type="button" data-action="property-edit" data-id="${esc(p.id)}">Edit</button>`:''}</div><div class="property-card-body"><h3>${esc(p.name)}</h3><p>⌖ &nbsp;${esc([p.address,p.city].filter(Boolean).join(', '))}</p><div class="card-stats"><span><b>${units.length}</b> total units</span><span><b>${units.filter(u=>occupied.has(u.id)).length}</b> occupied</span></div><div class="card-footer"><span>${money(p.monthly_rent)} <small style="font-weight:400;color:#929a92">/ month</small></span><small>${esc(caretakers)}</small></div></div></article>`;
   }).join('')||'<p class="muted">No properties yet. Use “Add property” to create your first record.</p>';
   $('#propertyCount').textContent=`${list.length} properties`;
   const count=$('.nav-link[data-view="properties"] em');if(count)count.textContent=state.properties.length;
@@ -146,12 +163,81 @@ function populateSelects(){
 }
 function renderAll(){renderProperties($('#propertySearch')?.value||'');renderTenants($('#tenantSearch')?.value||'');renderCaretakers();renderAgreements();renderMaintenance();renderPayments();renderOverview();}
 
-async function submitProperty(form){
-  const d=new FormData(form), unitCount=Math.min(200,Math.max(1,Number(d.get('units'))||1));
-  const {data:p,error}=await client().from('properties').insert({landlord_id:state.user.id,name:d.get('name').trim(),property_type:d.get('type'),address:d.get('address').trim(),city:d.get('city').trim()||null,monthly_rent:Number(d.get('rent'))||0}).select().single();
+function propertyPhotoFile(form){
+  const file=new FormData(form).get('photo');
+  if(!(file instanceof File)||!file.size)return null;
+  if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('Choose a JPG, PNG, or WebP property photo.');
+  if(file.size>5*1024*1024)throw new Error('Property photos must be 5 MB or smaller.');
+  return file;
+}
+async function uploadPropertyPhoto(propertyId,file){
+  if(!file)return null;
+  const ext={'image/jpeg':'jpg','image/png':'png','image/webp':'webp'}[file.type];
+  const path=`${propertyId}/${crypto.randomUUID()}.${ext}`;
+  const {error}=await client().storage.from('property-images').upload(path,file,{contentType:file.type,upsert:false,cacheControl:'3600'});
   if(error)throw error;
-  const units=Array.from({length:unitCount},(_,i)=>({property_id:p.id,unit_name:`Unit ${i+1}`,monthly_rent:unitCount?((Number(d.get('rent'))||0)/unitCount):0}));
-  const unitResult=await client().from('units').insert(units);if(unitResult.error)throw new Error(`Property saved, but unit creation failed: ${unitResult.error.message}`);
+  return path;
+}
+async function resizePropertyUnits(propertyId,count,monthlyRent){
+  const existing=state.units.filter(unit=>unit.property_id===propertyId);
+  if(count===existing.length)return;
+  if(count>existing.length){
+    const names=new Set(existing.map(unit=>unit.unit_name));const additions=[];
+    while(existing.length+additions.length<count){let n=1;while(names.has(`Unit ${n}`))n++;const unitName=`Unit ${n}`;names.add(unitName);additions.push({property_id:propertyId,unit_name:unitName,monthly_rent:count?monthlyRent/count:0});}
+    const {error}=await client().from('units').insert(additions);if(error)throw error;return;
+  }
+  const canRemove=existing.filter(unit=>!state.leases.some(lease=>lease.unit_id===unit.id)&&!state.maintenance.some(request=>request.unit_id===unit.id)).sort((a,b)=>b.unit_name.localeCompare(a.unit_name,'en',{numeric:true}));
+  const removeCount=existing.length-count;
+  if(canRemove.length<removeCount)throw new Error('The unit count cannot be reduced because the extra units have lease or maintenance records. Their history has been kept.');
+  const ids=canRemove.slice(0,removeCount).map(unit=>unit.id);const {error}=await client().from('units').delete().in('id',ids);if(error)throw error;
+}
+function showPropertyPhotoPreview(url){
+  const image=$('#propertyImagePreview');if(!image)return;
+  if(url){image.src=url;image.hidden=false;}else{image.removeAttribute('src');image.hidden=true;}
+}
+function prepareAddProperty(){
+  const form=$('#propertyForm');form.reset();delete form.dataset.editId;
+  $('#propertyModalTitle').textContent='Add a property';$('#propertyUnitsField').hidden=false;
+  $('#propertyPhotoHint').textContent='Optional. JPG, PNG, or WebP, up to 5 MB.';
+  $('#savePropertyButton').textContent='Save property';showPropertyPhotoPreview('');
+}
+async function prepareEditProperty(property){
+  const form=$('#propertyForm');form.reset();form.dataset.editId=property.id;
+  form.elements.name.value=property.name||'';form.elements.type.value=property.property_type||'residential';
+  form.elements.address.value=property.address||'';form.elements.city.value=property.city||'';
+  form.elements.rent.value=Number(property.monthly_rent)||0;
+  $('#propertyModalTitle').textContent='Edit property';$('#propertyUnitsField').hidden=false;
+  form.elements.units.value=String(state.units.filter(unit=>unit.property_id===property.id).length||1);
+  $('#propertyPhotoHint').textContent='Choose a new photo to replace the current one. Leave blank to keep it.';
+  $('#savePropertyButton').textContent='Save changes';showPropertyPhotoPreview('');
+  if(property.image_path)showPropertyPhotoPreview(await propertyImageUrl(property.image_path));
+  $('#propertyModal').showModal();
+}
+async function submitProperty(form){
+  const d=new FormData(form),file=propertyPhotoFile(form),editId=form.dataset.editId;
+  const values={name:String(d.get('name')||'').trim(),property_type:d.get('type'),address:String(d.get('address')||'').trim(),city:String(d.get('city')||'').trim()||null,monthly_rent:Number(d.get('rent'))||0};
+  if(editId){
+    const unitCount=Math.min(200,Math.max(1,Number(d.get('units'))||1));
+    const current=propertyBy(editId);if(!current)throw new Error('This property is no longer available. Refresh the page and try again.');
+    let newPath=null;
+    if(file)newPath=await uploadPropertyPhoto(editId,file);
+    const {error}=await client().from('properties').update({...values,...(newPath?{image_path:newPath}:{})}).eq('id',editId);
+    if(error){if(newPath)await client().storage.from('property-images').remove([newPath]);throw propertySchemaError(error);}
+    if(newPath&&current.image_path){state.propertyImageUrls.delete(current.image_path);const removed=await client().storage.from('property-images').remove([current.image_path]);if(removed.error)console.warn('Old property photo could not be removed:',removed.error.message);}
+    try{await resizePropertyUnits(editId,unitCount,values.monthly_rent);}catch(error){await loadWorkspace();throw new Error(`Property details were saved, but its unit count was not changed. ${error.message}`);}
+    await loadWorkspace();toast('Property details updated. Existing tenant agreements are unchanged.');return;
+  }
+  const unitCount=Math.min(200,Math.max(1,Number(d.get('units'))||1));
+  const {data:p,error}=await client().from('properties').insert({landlord_id:state.user.id,...values}).select().single();
+  if(error)throw propertySchemaError(error);
+  const units=Array.from({length:unitCount},(_,i)=>({property_id:p.id,unit_name:`Unit ${i+1}`,monthly_rent:unitCount?(values.monthly_rent/unitCount):0}));
+  const unitResult=await client().from('units').insert(units);
+  if(unitResult.error)throw new Error(`Property saved, but unit creation failed: ${unitResult.error.message}`);
+  if(file){
+    let path;
+    try{path=await uploadPropertyPhoto(p.id,file);const {error:imageError}=await client().from('properties').update({image_path:path}).eq('id',p.id);if(imageError)throw imageError;}
+    catch(error){if(path)await client().storage.from('property-images').remove([path]);await loadWorkspace();throw new Error(`Property and units were saved, but its photo was not. You can edit the property and try again. ${propertySchemaError(error).message}`);}
+  }
   await loadWorkspace();toast('Property and units saved.');
 }
 async function invokeFunction(name,body){const {data,error}=await client().functions.invoke(name,{body});if(error)throw new Error(`${name} function: ${error.message}. Deploy the function and set its Supabase secrets.`);if(data?.error)throw new Error(data.error);return data;}
@@ -176,6 +262,7 @@ async function submitPayment(form){const d=new FormData(form),tenant=state.profi
 
 async function actionClick(event){const button=event.target.closest('[data-action]');if(!button)return;const {action,id}=button.dataset;
   try{
+    if(action==='property-edit'){if(state.profile?.role!=='landlord')throw new Error('Only the landlord can edit properties.');const property=propertyBy(id);if(!property)throw new Error('Property not found.');await prepareEditProperty(property);}
     if(action==='agreement-open'){const a=state.agreements.find(x=>x.id===id);if(!a)throw new Error('Agreement not found.');const tab=window.open('about:blank','_blank');const {data,error}=await client().storage.from('rental-agreements').createSignedUrl(a.storage_path,120);if(error){tab?.close();throw error;}if(tab){tab.opener=null;tab.location=data.signedUrl;}else toast('Your browser blocked the new tab. Allow pop-ups and try again.');}
     if(action==='agreement-sign'){const signedName=prompt('Type your full legal name to acknowledge this agreement:');if(!signedName?.trim())return;const {error}=await client().from('agreements').update({status:'tenant_signed',signed_name:signedName.trim()}).eq('id',id);if(error)throw error;await loadWorkspace();toast('Your acknowledgement was recorded.');}
     if(action==='agreement-activate'){const agreement=state.agreements.find(a=>a.id===id);const {error:leaseError}=await client().from('leases').update({status:'active'}).eq('id',agreement?.lease_id);if(leaseError)throw leaseError;const {error}=await client().from('agreements').update({status:'active'}).eq('id',id);if(error)throw error;await loadWorkspace();toast('Lease and agreement marked active.');}
@@ -205,11 +292,14 @@ async function initializeAuth(){
 
 $$('[data-view]').forEach(link=>link.addEventListener('click',e=>{e.preventDefault();setView(link.dataset.view);}));
 $$('[data-view-link]').forEach(el=>el.addEventListener('click',()=>setView(el.dataset.viewLink)));
-$$('[data-modal]').forEach(button=>button.addEventListener('click',()=>{if(button.hidden)return;populateSelects();const d=$(`#${button.dataset.modal}`);if(d&&!d.hidden)d.showModal();}));
+$$('[data-modal]').forEach(button=>button.addEventListener('click',()=>{if(button.hidden)return;populateSelects();const d=$(`#${button.dataset.modal}`);if(d&&!d.hidden){if(d.id==='propertyModal')prepareAddProperty();d.showModal();}}));
 $('#mobileMenu').addEventListener('click',()=>$('#sidebar').classList.toggle('open'));
 $('#profileButton').addEventListener('click',()=>$('#profileModal').showModal());
 $('#propertySearch').addEventListener('input',e=>renderProperties(e.target.value));$('#propertyTypeFilter').addEventListener('change',()=>renderProperties($('#propertySearch').value));$('#propertyCityFilter').addEventListener('change',()=>renderProperties($('#propertySearch').value));$('#tenantSearch').addEventListener('input',e=>renderTenants(e.target.value));
-$('#propertyForm').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();try{await submitProperty(e.currentTarget);e.currentTarget.closest('dialog').close();e.currentTarget.reset();}catch(error){toast(error.message||'Could not save property.');}});
+let propertyPreviewUrl='';
+$('#propertyPhotoInput').addEventListener('change',e=>{if(propertyPreviewUrl)URL.revokeObjectURL(propertyPreviewUrl);propertyPreviewUrl='';const file=e.target.files?.[0];if(file){propertyPreviewUrl=URL.createObjectURL(file);showPropertyPhotoPreview(propertyPreviewUrl);}else if(!$('#propertyForm').dataset.editId)showPropertyPhotoPreview('');});
+$('.modal-close', $('#propertyModal')).addEventListener('click',()=>{if(propertyPreviewUrl)URL.revokeObjectURL(propertyPreviewUrl);propertyPreviewUrl='';prepareAddProperty();$('#propertyModal').close();});
+$('#propertyForm').addEventListener('submit',async e=>{const form=e.currentTarget;if(e.submitter?.value==='cancel'){if(propertyPreviewUrl)URL.revokeObjectURL(propertyPreviewUrl);propertyPreviewUrl='';prepareAddProperty();return;}e.preventDefault();try{await submitProperty(form);form.closest('dialog').close();if(propertyPreviewUrl)URL.revokeObjectURL(propertyPreviewUrl);propertyPreviewUrl='';prepareAddProperty();}catch(error){toast(error.message||'Could not save property.');}});
 $('#tenantForm').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();try{await submitTenant(e.currentTarget);e.currentTarget.closest('dialog').close();e.currentTarget.reset();}catch(error){toast(error.message||'Could not invite tenant.');}});
 $('#caretakerForm').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();try{await submitCaretaker(e.currentTarget);e.currentTarget.closest('dialog').close();e.currentTarget.reset();}catch(error){toast(error.message||'Could not invite caretaker.');}});
 $('#agreementForm').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();const button=e.submitter;button.disabled=true;try{await submitAgreement(e.currentTarget);e.currentTarget.closest('dialog').close();e.currentTarget.reset();}catch(error){toast(error.message||'Could not send agreement.');}finally{button.disabled=false;}});

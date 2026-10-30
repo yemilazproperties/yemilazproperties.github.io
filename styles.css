@@ -12,3 +12,12 @@ body.connected-mode .attention-panel,body.connected-mode .activity-panel{display
 .auth-brand{display:block;width:max-content;max-width:100%;padding:0 0 35px}
 .brand-wordmark{display:block;width:190px;max-width:100%;height:auto}
 @media(max-width:740px){.auth-brand{padding-bottom:30px}.brand-wordmark{width:165px}}
+
+/* Property photo upload and editing */
+.property-card .card-image>img{position:absolute;inset:0;z-index:0;width:100%;height:100%;object-fit:cover}
+.property-card .card-image.has-photo:before{display:none}
+.property-card .card-image .card-type{z-index:2}
+.property-edit-button{position:absolute;z-index:3;right:10px;top:10px;border:1px solid #ffffffb8;border-radius:6px;background:#fff;color:#193744;padding:6px 10px;font-size:10px;font-weight:700;box-shadow:0 2px 8px #19374420}
+.property-edit-button:hover{background:#f2f5f4}
+.field-hint{display:block;margin-top:6px;color:#89938f;font-size:9px;font-weight:400;line-height:1.5}
+.property-image-preview{display:block;width:100%;max-height:190px;object-fit:cover;border-radius:8px;margin:-3px 0 15px;border:1px solid var(--line)}
