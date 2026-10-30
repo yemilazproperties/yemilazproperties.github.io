@@ -1,4 +1,4 @@
-project_id = "qghumlexkybfndcrkgqk"
+project_id = "qghumlekxybfndcrkgqk"
 
 [functions.invite-member]
 verify_jwt = true
