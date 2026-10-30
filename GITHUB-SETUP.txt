@@ -1,8 +1,11 @@
-GitHub Pages upload
-1. Unzip this package directly into the root of your local yemilazproperties.github.io repository.
-2. Replace index.html and add or replace app.js, styles.css, config.js, and supabase-client.js.
-3. Run the separate property-manager-supabase.sql file once in Supabase SQL Editor.
-4. Create your first Auth user in Supabase, then promote that profile to landlord using the SQL in README.md.
-5. Add http://localhost:8000 and https://yemilazproperties.github.io to Supabase Auth allowed redirect URLs.
-6. Review the changed files in GitHub Desktop. Commit and push when you are ready.
-7. config.js has only the Supabase publishable key, which is designed to be public. Never add a Supabase secret/service-role key.
+YEMILAZ PROPERTIES — SETUP
+
+1. Unzip this package into the root of your yemilazproperties.github.io repository.
+2. In Supabase SQL Editor, run supabase/schema.sql once. It replaces the old recursive RLS policies on these app tables and keeps existing rows.
+3. In Supabase Auth > URL Configuration, add https://yemilazproperties.github.io/** and http://localhost:8000/** to Redirect URLs. Set the production URL as Site URL.
+4. Set up SMTP in Supabase Auth so tenant/caretaker invitation emails can be delivered.
+5. Deploy invite-member and notify-agreement Edge Functions. See README.md for CLI commands and Resend secrets. Never put service-role keys in this GitHub repository.
+6. Review the files in GitHub Desktop. Commit to main and push. GitHub Pages should publish from main / (root).
+7. Visit https://yemilazproperties.github.io/ and sign in. Local testing: run `python -m http.server 8000` in PowerShell from the project folder and open http://localhost:8000.
+
+config.js contains the Supabase project URL and publishable browser key. Publishable keys are intended for browser use; all private data is protected by Supabase RLS.

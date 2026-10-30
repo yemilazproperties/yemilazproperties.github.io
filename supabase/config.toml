@@ -1,0 +1,7 @@
+project_id = "qghumlexkybfndcrkgqk"
+
+[functions.invite-member]
+verify_jwt = true
+
+[functions.notify-agreement]
+verify_jwt = true

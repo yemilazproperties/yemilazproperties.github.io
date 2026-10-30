@@ -1,71 +1,221 @@
-const properties = [
-  {name:'Oakwood Gardens', area:'Ikoyi, Lagos', units:12, occupied:11, rent:'₦8,400,000', type:'Residential', caretaker:'Tunde Ojo', tone:'one'},
-  {name:'The Palms Residence', area:'Lekki Phase 1, Lagos', units:8, occupied:7, rent:'₦5,600,000', type:'Residential', caretaker:'Bisi Adeyemi', tone:'two'},
-  {name:'Victoria Island Plaza', area:'Victoria Island, Lagos', units:5, occupied:4, rent:'₦3,200,000', type:'Commercial', caretaker:'Tunde Ojo', tone:'three'},
-  {name:'Ilupeju Court', area:'Ilupeju, Lagos', units:3, occupied:2, rent:'₦1,200,000', type:'Residential', caretaker:'Not assigned', tone:'two'}
-];
-let tenants = [
-  {name:'Amara Okafor', email:'amara.okafor@email.com', initials:'AO', property:'Oakwood Gardens', unit:'Flat 4B', lease:'1 Nov 2026 – 31 Oct 2027', rent:'₦1,250,000', status:'Agreement pending', tone:'avatar-lavender'},
-  {name:'Chidi Okeke', email:'chidi.okeke@email.com', initials:'CO', property:'The Palms Residence', unit:'Flat 2A', lease:'1 Jan 2026 – 31 Dec 2026', rent:'₦800,000', status:'Active', tone:'avatar-mint'},
-  {name:'Femi Balogun', email:'femi.balogun@email.com', initials:'FB', property:'Victoria Island Plaza', unit:'Office 1C', lease:'1 Nov 2026 – 31 Oct 2027', rent:'₦2,400,000', status:'Active', tone:'avatar-cream'},
-  {name:'Ngozi Eze', email:'ngozi.eze@email.com', initials:'NE', property:'Oakwood Gardens', unit:'Flat 7A', lease:'1 Mar 2026 – 28 Feb 2027', rent:'₦1,100,000', status:'Active', tone:'avatar-peach'},
-  {name:'Ibrahim Musa', email:'ibrahim.musa@email.com', initials:'IM', property:'The Palms Residence', unit:'Flat 3C', lease:'Sep 1, 2026 – Aug 31, 2027', rent:'₦950,000', status:'Active', tone:'avatar-blue'}
-];
-const caretakers = [
-  {name:'Tunde Ojo', email:'tunde.ojo@email.com', initials:'TO', properties:'Oakwood Gardens, Victoria Island Plaza', units:'17 units', tone:'avatar-peach'},
-  {name:'Bisi Adeyemi', email:'bisi.adeyemi@email.com', initials:'BA', properties:'The Palms Residence', units:'8 units', tone:'avatar-mint'},
-  {name:'Kunle Adebayo', email:'kunle.adebayo@email.com', initials:'KA', properties:'Ilupeju Court', units:'3 units', tone:'avatar-lavender'}
-];
-const agreements = [
-  {name:'Amara Okafor', initials:'AO', tone:'avatar-lavender', property:'Oakwood Gardens', unit:'Flat 4B', sent:'29 Oct 2026', start:'1 Nov 2026', status:'Needs review', tag:'tag-pending'},
-  {name:'Femi Balogun', initials:'FB', tone:'avatar-cream', property:'Victoria Island Plaza', unit:'Office 1C', sent:'28 Oct 2026', start:'1 Nov 2026', status:'Awaiting signature', tag:'tag-paid'},
-  {name:'Chidi Okeke', initials:'CO', tone:'avatar-mint', property:'The Palms Residence', unit:'Flat 2A', sent:'18 Dec 2025', start:'1 Jan 2026', status:'Active', tag:'tag-done'},
-  {name:'Ngozi Eze', initials:'NE', tone:'avatar-peach', property:'Oakwood Gardens', unit:'Flat 7A', sent:'14 Feb 2026', start:'1 Mar 2026', status:'Active', tag:'tag-done'}
-];
-const formatNaira = amount => new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(Number(amount)||0);
-const escapeHTML = value => String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-let signedInUser = null;
-let signedInRole = null;
-function renderProperties(filter='') { const root=document.querySelector('#propertyCards'); if(!root)return; const list=properties.filter(p=>(p.name+' '+p.area+' '+p.type).toLowerCase().includes(filter.toLowerCase())); root.innerHTML=list.map(p=>`<article class="property-card"><div class="card-image"><span class="card-type">${escapeHTML(p.type.toUpperCase())}</span></div><div class="property-card-body"><h3>${escapeHTML(p.name)}</h3><p>⌖ &nbsp;${escapeHTML(p.area)}</p><div class="card-stats"><span><b>${escapeHTML(p.units)}</b> total units</span><span><b>${escapeHTML(p.occupied)}</b> occupied</span></div><div class="card-footer"><span>${escapeHTML(p.rent)} <small style="font-weight:400;color:#929a92">/ month</small></span><span>Manage →</span></div></div></article>`).join('')||'<p class="muted">No properties match your search.</p>'; }
-function renderTenants(filter='') { const root=document.querySelector('#tenantRows'); if(!root)return; const list=tenants.filter(t=>(t.name+' '+t.email+' '+t.property+' '+t.unit).toLowerCase().includes(filter.toLowerCase())); root.innerHTML=list.map(t=>`<tr><td><div class="tenant-cell"><span class="avatar ${escapeHTML(t.tone)}">${escapeHTML(t.initials)}</span><span><b>${escapeHTML(t.name)}</b><small class="tenant-email">${escapeHTML(t.email)}</small></span></div></td><td><b>${escapeHTML(t.property)}</b><small class="table-sub">${escapeHTML(t.unit)}</small></td><td>${escapeHTML(t.lease)}</td><td>${escapeHTML(t.rent)}</td><td><span class="activity-tag ${t.status==='Active'?'tag-done':'tag-pending'}">${escapeHTML(t.status)}</span></td><td>···</td></tr>`).join('')||'<tr><td colspan="6">No tenants match your search.</td></tr>'; }
-function renderCaretakers(){const root=document.querySelector('#caretakerCards');if(!root)return;root.innerHTML=caretakers.map(c=>`<article class="caretaker-card"><div class="caretaker-top"><span class="avatar ${escapeHTML(c.tone)}">${escapeHTML(c.initials)}</span><div><h3>${escapeHTML(c.name)}</h3><p>Active caretaker</p></div><button class="row-more" style="margin-left:auto">···</button></div><div class="caretaker-property"><span>Assigned properties</span><b>${escapeHTML(c.units)}</b></div><div class="caretaker-contact">${escapeHTML(c.properties)}<br><span style="display:inline-block;margin-top:8px;color:#909890">✉ &nbsp;${escapeHTML(c.email)}</span></div></article>`).join('');}
-function renderAgreements(){const root=document.querySelector('#agreementRows');if(!root)return;root.innerHTML=agreements.map(a=>`<tr><td><div class="tenant-cell"><span class="avatar ${a.tone}">${a.initials}</span><b>${a.name}</b></div></td><td><b>${a.property}</b><small class="table-sub">${a.unit}</small></td><td>${a.sent}</td><td>${a.start}</td><td><span class="activity-tag ${a.tag}">${a.status}</span></td><td>···</td></tr>`).join('');}
-function showToast(message){const toast=document.querySelector('#toast');toast.textContent=message;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),3200)}
-function setView(name){if(document.body.classList.contains('connected-mode')&&!['overview','properties'].includes(name))name='properties';document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelector(`#view-${name}`)?.classList.add('active');document.querySelectorAll('.nav-link').forEach(l=>l.classList.toggle('active',l.dataset.view===name));const label={overview:'Overview',properties:'Properties',tenants:'Tenants',agreements:'Agreements',caretakers:'Caretakers',maintenance:'Maintenance',payments:'Payments'};document.querySelector('#crumb').textContent=label[name]||'Overview';document.querySelector('#sidebar').classList.remove('open');window.location.hash=name==='overview'?'overview':name;window.scrollTo(0,0);}
-document.querySelectorAll('[data-view]').forEach(link=>link.addEventListener('click',e=>{e.preventDefault();setView(link.dataset.view)}));document.querySelectorAll('[data-view-link]').forEach(el=>el.addEventListener('click',()=>setView(el.dataset.viewLink)));
-document.querySelectorAll('[data-modal]').forEach(button=>button.addEventListener('click',()=>document.getElementById(button.dataset.modal).showModal()));document.querySelector('#mobileMenu').addEventListener('click',()=>document.querySelector('#sidebar').classList.toggle('open'));
-document.querySelector('#propertySearch').addEventListener('input',e=>renderProperties(e.target.value));document.querySelector('#tenantSearch').addEventListener('input',e=>renderTenants(e.target.value));
-document.querySelector('#propertyForm').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();const d=new FormData(e.currentTarget);if(window.hearthSupabase&&signedInUser){const db=window.hearthSupabase;const unitCount=Math.min(200,Math.max(1,Number(d.get('units'))||1));const {data:property,error}=await db.from('properties').insert({landlord_id:signedInUser.id,name:d.get('name'),property_type:String(d.get('type')).toLowerCase().replace(' ','_'),address:d.get('address'),monthly_rent:Number(d.get('rent'))||0}).select().single();if(error){showToast(error.message);return;}const units=Array.from({length:unitCount},(_,i)=>({property_id:property.id,unit_name:`Unit ${i+1}`,monthly_rent:unitCount?((Number(d.get('rent'))||0)/unitCount):0}));const unitResult=await db.from('units').insert(units);if(unitResult.error){showToast('Property saved, but units need attention: '+unitResult.error.message);}else showToast('Property saved to Supabase.');await loadCloudProperties();}else{properties.unshift({name:d.get('name'),area:d.get('address'),units:Number(d.get('units'))||1,occupied:0,rent:formatNaira(d.get('rent')),type:d.get('type'),caretaker:d.get('caretaker'),tone:'one'});renderProperties(document.querySelector('#propertySearch').value);showToast('Property added to your portfolio.');}e.currentTarget.closest('dialog').close();e.currentTarget.reset();});
-document.querySelector('#tenantForm').addEventListener('submit',e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();const d=new FormData(e.currentTarget),name=d.get('name');tenants.unshift({name,email:d.get('email'),initials:name.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase(),property:d.get('property'),unit:d.get('unit')||'Unit to be assigned',lease:'Lease dates to be confirmed',rent:'₦'+(Number(d.get('rent'))||0).toLocaleString(),status:'Agreement pending',tone:'avatar-blue'});renderTenants(document.querySelector('#tenantSearch').value);e.currentTarget.closest('dialog').close();e.currentTarget.reset();showToast('Tenant profile created.');});
-document.querySelector('#agreementForm').addEventListener('submit',e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();const file=e.currentTarget.querySelector('[type=file]').files[0];e.currentTarget.closest('dialog').close();showToast(file?'Agreement prepared. Connect Supabase to send it by email.':'Choose a document to attach before sending.');});
-document.querySelector('#caretakerForm').addEventListener('submit',e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();const d=new FormData(e.currentTarget),name=d.get('name');caretakers.unshift({name,email:d.get('email'),initials:name.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase(),properties:d.get('property'),units:'Assigned units',tone:'avatar-blue'});renderCaretakers();e.currentTarget.closest('dialog').close();e.currentTarget.reset();showToast('Caretaker profile added. Email invitations need Supabase setup.');});
-document.querySelectorAll('.task-row').forEach(el=>el.addEventListener('click',()=>{}));
-renderProperties();renderTenants();renderCaretakers();renderAgreements();const initial=location.hash.slice(1);if(['overview','properties','tenants','agreements','caretakers','maintenance','payments'].includes(initial))setView(initial);
+const $ = (selector, root=document) => root.querySelector(selector);
+const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
+const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = value => new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(Number(value)||0);
+const dateText = value => value ? new Intl.DateTimeFormat('en-NG',{dateStyle:'medium',timeZone:'Africa/Lagos'}).format(new Date(`${value}T00:00:00`)) : '—';
+const today = () => new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Lagos'}).format(new Date());
+const state = {user:null,profile:null,properties:[],units:[],leases:[],profiles:[],assignments:[],agreements:[],maintenance:[],payments:[],allowed:new Set()};
+const client = () => window.hearthSupabase;
+const overviewGridTemplate = $('#view-overview .content-grid')?.innerHTML || '';
 
-async function loadCloudProperties(){
-  if(!window.hearthSupabase||!signedInUser)return;
-  const {data,error}=await window.hearthSupabase.from('properties').select('*, units(count)').order('created_at',{ascending:false});
-  if(error){showToast('Could not load properties: '+error.message);return;}
-  properties.splice(0,properties.length,...(data||[]).map(p=>({id:p.id,name:p.name,area:[p.address,p.city].filter(Boolean).join(', '),units:p.units?.[0]?.count||0,occupied:0,rent:formatNaira(p.monthly_rent),type:p.property_type,caretaker:'',tone:'one'})));
-  renderProperties(document.querySelector('#propertySearch').value);
-  const statCards=document.querySelectorAll('#view-overview .stats-grid .stat-card');
-  if(statCards.length){
-    const unitTotal=properties.reduce((sum,p)=>sum+Number(p.units||0),0);
-    statCards[0].querySelector('.stat-number').innerHTML=`${properties.length} <small>properties</small>`;
-    statCards[0].querySelector('.stat-foot').textContent='Saved in Supabase';
-    statCards[1].querySelector('.stat-number').innerHTML=`${unitTotal} <small>units</small>`;
-    statCards[1].querySelector('.occupancy-track').hidden=true;
-    statCards[1].querySelector('.stat-foot').textContent='Lease occupancy is not connected yet';
-    statCards[2].querySelector('.stat-number').textContent='—';
-    statCards[2].querySelector('.stat-foot').textContent='Payments module not connected';
-    statCards[3].querySelector('.stat-number').innerHTML='— <small>items</small>';
-    statCards[3].querySelector('.stat-foot').textContent='Requests and agreements not connected';
-  }
-  const preview=document.querySelector('#view-overview .property-list');
-  if(preview)preview.innerHTML=properties.slice(0,3).map(p=>`<article class="property-row"><div class="property-thumb thumb-one"><span>${escapeHTML(p.type.toUpperCase())}</span></div><div class="property-main"><h3>${escapeHTML(p.name)}</h3><p>${escapeHTML(p.area)} <span>·</span> ${p.units} units</p></div><div class="property-status">${p.units} units</div><div class="property-rent">${escapeHTML(p.rent)} <small>/ month</small></div><button class="row-more" aria-label="Property menu">···</button></article>`).join('')||'<p class="muted">Add your first property to see it here.</p>';
+function toast(message){const box=$('#toast');box.textContent=message;box.classList.add('show');setTimeout(()=>box.classList.remove('show'),4800);}
+function optionMarkup(rows,label){return rows.map(r=>`<option value="${esc(r.id)}">${esc(label(r))}</option>`).join('');}
+function propertyBy(id){return state.properties.find(p=>p.id===id);}
+function unitBy(id){return state.units.find(u=>u.id===id);}
+function leaseBy(id){return state.leases.find(l=>l.id===id);}
+function personBy(id){return state.profiles.find(p=>p.id===id);}
+function leaseUnit(lease){return unitBy(lease?.unit_id);}
+function unitProperty(unit){return propertyBy(unit?.property_id);}
+function leaseTenant(lease){return personBy(lease?.tenant_id);}
+function unitLabel(unit){const p=unitProperty(unit);return `${p?.name||'Property'} · ${unit?.unit_name||'Unit'}`;}
+function leaseLabel(lease){const u=leaseUnit(lease);return `${leaseTenant(lease)?.full_name||leaseTenant(lease)?.email||'Tenant'} · ${unitLabel(u)}`;}
+function setView(name){
+  if(!state.allowed.has(name)){toast('This section is not available for your account.');return;}
+  $$('.view').forEach(v=>v.classList.remove('active'));$(`#view-${name}`)?.classList.add('active');
+  $$('.nav-link').forEach(link=>link.classList.toggle('active',link.dataset.view===name));
+  const labels={overview:state.profile?.role==='tenant'?'My home':'Overview',properties:'Properties',tenants:'Tenants',agreements:'Agreements',caretakers:'Caretakers',maintenance:'Maintenance',payments:'Payments'};
+  $('#crumb').textContent=labels[name]||'Overview';$('#sidebar').classList.remove('open');location.hash=name==='overview'?'overview':name;window.scrollTo(0,0);
 }
-function showAuthGate(){document.body.classList.add('auth-loading');document.querySelector('#authGate').hidden=false;}
-function showAuthError(message){document.querySelector('#authError').textContent=message||'';}
-async function initializeSupabaseAuth(){const client=window.hearthSupabase;const gate=document.querySelector('#authGate');if(!client){gate.hidden=false;document.querySelector('#loginForm').hidden=true;document.querySelector('#recoveryForm').hidden=true;document.querySelector('#resetPassword').hidden=true;document.querySelector('#authSetup').hidden=false;document.querySelector('#demoMode').addEventListener('click',()=>{gate.hidden=true;document.body.classList.remove('auth-loading');});return;}showAuthGate();document.querySelector('#loginForm').addEventListener('submit',async e=>{e.preventDefault();showAuthError('');const d=new FormData(e.currentTarget);const {error}=await client.auth.signInWithPassword({email:d.get('email'),password:d.get('password')});if(error)showAuthError(error.message);});document.querySelector('#resetPassword').addEventListener('click',async()=>{const email=document.querySelector('#loginForm [name=email]').value;if(!email){showAuthError('Enter your email address first.');return;}const {error}=await client.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});showAuthError(error?'Could not send reset email: '+error.message:'Password reset email sent.');});document.querySelector('#recoveryForm').addEventListener('submit',async e=>{e.preventDefault();const d=new FormData(e.currentTarget),errorBox=document.querySelector('#recoveryError');errorBox.textContent='';if(d.get('password')!==d.get('confirmPassword')){errorBox.textContent='The passwords do not match.';return;}const {error}=await client.auth.updateUser({password:d.get('password')});if(error){errorBox.textContent=error.message;return;}await client.auth.signOut();document.querySelector('#recoveryForm').hidden=true;document.querySelector('#loginForm').hidden=false;document.querySelector('#authTitle').textContent='Password updated';document.querySelector('#authSubtitle').textContent='Sign in with your new password.';showAuthError('Your password has been updated.');});client.auth.onAuthStateChange((event,session)=>{setTimeout(()=>{if(event==='PASSWORD_RECOVERY'){document.querySelector('#loginForm').hidden=true;document.querySelector('#recoveryForm').hidden=false;document.querySelector('#authTitle').textContent='Choose a new password';document.querySelector('#authSubtitle').textContent='Use at least eight characters.';showAuthGate();}else if(session)handleSession(session);else{document.querySelector('#roleMessage').hidden=true;document.querySelector('#recoveryForm').hidden=true;document.querySelector('#loginForm').hidden=false;showAuthGate();}},0);});document.querySelector('#signOutButton').addEventListener('click',()=>client.auth.signOut());document.querySelector('#logoutButton').addEventListener('click',()=>client.auth.signOut());const {data:{session}}=await client.auth.getSession();if(session)await handleSession(session);}
-async function handleSession(session){const client=window.hearthSupabase;const {data:profile,error}=await client.from('profiles').select('id,full_name,email,role').eq('id',session.user.id).maybeSingle();if(error||!profile){document.querySelector('#loginForm').hidden=true;document.querySelector('#authSetup').hidden=true;document.querySelector('#roleMessage').hidden=false;document.querySelector('#roleMessageText').textContent='Your account profile is not ready yet. Apply supabase/schema.sql, then ask the landlord to set up your access.';document.querySelector('#signOutButton').onclick=()=>client.auth.signOut();return;}if(profile.role!=='landlord'){document.querySelector('#loginForm').hidden=true;document.querySelector('#authSetup').hidden=true;document.querySelector('#roleMessage').hidden=false;const labels={caretaker:'Caretaker',tenant:'Tenant'};document.querySelector('#roleMessageText').textContent=`This account is set up as a ${labels[profile.role]||'team'} profile. The ${labels[profile.role]||'team'} portal is being prepared. Sign out to use another account.`;document.querySelector('#signOutButton').onclick=()=>client.auth.signOut();return;}signedInUser=session.user;signedInRole=profile.role;document.querySelector('#authGate').hidden=true;document.body.classList.remove('auth-loading');document.body.classList.add('connected-mode');document.querySelectorAll('.nav-link').forEach(link=>{if(!['overview','properties'].includes(link.dataset.view))link.hidden=true;});document.querySelectorAll('[data-modal="tenantModal"],[data-modal="agreementModal"],[data-modal="caretakerModal"]').forEach(button=>button.hidden=true);setView('overview');await loadCloudProperties();}
-initializeSupabaseAuth();
+function setRoleUI(){
+  const role=state.profile.role;
+  const permissions={landlord:['overview','properties','tenants','agreements','caretakers','maintenance','payments'],caretaker:['overview','properties','tenants','agreements','maintenance'],tenant:['overview','agreements','maintenance','payments']};
+  state.allowed=new Set(permissions[role]||[]);
+  $$('.nav-link').forEach(link=>{link.hidden=!state.allowed.has(link.dataset.view);});
+  $$('.nav-label').forEach(el=>{const group=el.dataset.navLabel;const links=group==='manage'?$$('.nav-link[data-nav-group="manage"]'):$$('.nav-link:not([data-nav-group])');el.hidden=!links.some(link=>!link.hidden);});
+  $$('[data-landlord-only]').forEach(el=>el.hidden=role!=='landlord');
+  const allowedModals=role==='landlord'?new Set(['propertyModal','tenantModal','caretakerModal','agreementModal','maintenanceModal','paymentModal']):role==='caretaker'?new Set(['maintenanceModal']):new Set(['maintenanceModal','paymentModal']);
+  $$('[data-modal]').forEach(el=>el.hidden=!allowedModals.has(el.dataset.modal));
+  $('#workspaceTitle').textContent=role==='landlord'?'Landlord workspace':role==='caretaker'?'Caretaker workspace':'Tenant portal';
+  const display=state.profile.full_name?.trim()||(role==='landlord'?'Yemilaz Properties':state.profile.email||`${role} account`);
+  $$('.profile-name b').forEach(el=>el.textContent=display);
+  $$('.profile-name small').forEach(el=>el.textContent=role[0].toUpperCase()+role.slice(1));
+  const initials=display.split(/\s+/).slice(0,2).map(s=>s[0]||'').join('').toUpperCase();
+  $$('.profile-chip .avatar,#logoutButton').forEach(el=>el.textContent=initials||'YP');
+  const profileForm=$('#profileForm');if(profileForm){profileForm.elements.full_name.value=state.profile.full_name||'';$('#profileEmail').value=state.profile.email||'';$('#profileRole').value=role[0].toUpperCase()+role.slice(1);}
+  $('#overviewGreeting').textContent=`${role==='tenant'?'Welcome':'Good day'}, ${(display.split(/\s+/)[0]||'Yemilaz')}`;
+  $('#overviewSubheading').textContent=role==='tenant'?'Your home, documents, maintenance, and rent records.':role==='caretaker'?'Your assigned properties and active work.':'Your property portfolio and activity.';
+  $$('.view').forEach(v=>{const n=v.id.replace('view-','');v.hidden=!state.allowed.has(n);});
+  const initial=location.hash.slice(1);setView(state.allowed.has(initial)?initial:(role==='tenant'?'overview':'overview'));
+}
+function markLoading(){const box=$('#toast');box.textContent='Loading your Supabase records…';box.classList.add('show');setTimeout(()=>box.classList.remove('show'),1300);}
+
+async function fetchRows(table,query='*'){
+  const {data,error}=await client().from(table).select(query);
+  if(error)throw new Error(`${table}: ${error.message}`);
+  return data||[];
+}
+async function loadWorkspace(){
+  markLoading();
+  const tables=['properties','units','leases','profiles','property_caretakers','agreements','maintenance_requests','payments'];
+  const results=await Promise.allSettled(tables.map(t=>fetchRows(t)));
+  const failed=results.map((r,i)=>r.status==='rejected'?`${tables[i]}: ${r.reason.message}`:null).filter(Boolean);
+  results.forEach((r,i)=>{if(r.status==='fulfilled')state[{properties:'properties',units:'units',leases:'leases',profiles:'profiles',property_caretakers:'assignments',agreements:'agreements',maintenance_requests:'maintenance',payments:'payments'}[tables[i]]]=r.value;});
+  if(failed.length)toast(`Some records could not load. ${failed.join(' | ')}`);
+  populateSelects();renderAll();
+}
+
+function renderProperties(filter=''){
+  const cards=$('#propertyCards');if(!cards)return;
+  const q=filter.trim().toLowerCase();const list=state.properties.filter(p=>`${p.name} ${p.address} ${p.city} ${p.property_type}`.toLowerCase().includes(q));
+  cards.innerHTML=list.map((p,i)=>{
+    const units=state.units.filter(u=>u.property_id===p.id);const occupied=new Set(state.leases.filter(l=>l.status==='active').map(l=>l.unit_id));
+    const caretakers=state.assignments.filter(a=>a.property_id===p.id).map(a=>personBy(a.caretaker_id)?.full_name).filter(Boolean).join(', ')||'No caretaker assigned';
+    return `<article class="property-card"><div class="card-image thumb-${['one','two','three'][i%3]}"><span class="card-type">${esc((p.property_type||'residential').replace('_',' ').toUpperCase())}</span></div><div class="property-card-body"><h3>${esc(p.name)}</h3><p>⌖ &nbsp;${esc([p.address,p.city].filter(Boolean).join(', '))}</p><div class="card-stats"><span><b>${units.length}</b> total units</span><span><b>${units.filter(u=>occupied.has(u.id)).length}</b> occupied</span></div><div class="card-footer"><span>${money(p.monthly_rent)} <small style="font-weight:400;color:#929a92">/ month</small></span><small>${esc(caretakers)}</small></div></div></article>`;
+  }).join('')||'<p class="muted">No properties yet. Use “Add property” to create your first record.</p>';
+  $('#propertyCount').textContent=`${list.length} properties`;
+  const count=$('.nav-link[data-view="properties"] em');if(count)count.textContent=state.properties.length;
+  const filterTypes=$('#propertyTypeFilter')?.value||'';const filterCity=$('#propertyCityFilter')?.value||'';
+  $$('.property-card',cards).forEach((card,i)=>{const p=list[i];if(p&&((filterTypes&&p.property_type!==filterTypes)||(filterCity&&p.city!==filterCity)))card.hidden=true;});
+  const citySel=$('#propertyCityFilter');if(citySel){const current=citySel.value;const cities=[...new Set(state.properties.map(p=>p.city).filter(Boolean))].sort();citySel.innerHTML='<option value="">All locations</option>'+cities.map(c=>`<option>${esc(c)}</option>`).join('');citySel.value=current;}
+}
+function renderTenants(filter=''){
+  const root=$('#tenantRows');if(!root)return;const q=filter.trim().toLowerCase();
+  const rows=state.profiles.filter(p=>p.role==='tenant').map(p=>({p,lease:state.leases.find(l=>l.tenant_id===p.id&&l.status!=='ended')})).filter(x=>`${x.p.full_name} ${x.p.email} ${unitLabel(leaseUnit(x.lease))}`.toLowerCase().includes(q));
+  root.innerHTML=rows.map(({p,lease})=>{const u=leaseUnit(lease);return `<tr><td><div class="tenant-cell"><span class="avatar avatar-blue">${esc((p.full_name||p.email||'?').split(/\s+/).map(a=>a[0]).slice(0,2).join('').toUpperCase())}</span><span><b>${esc(p.full_name||'Tenant')}</b><small class="tenant-email">${esc(p.email)}</small></span></div></td><td><b>${esc(unitProperty(u)?.name||'Not assigned')}</b><small class="table-sub">${esc(u?.unit_name||'—')}</small></td><td>${lease?`${dateText(lease.start_date)} – ${dateText(lease.end_date)}`:'No active lease'}</td><td>${lease?money(lease.annual_rent):'—'}</td><td><span class="activity-tag ${lease?.status==='active'?'tag-done':'tag-pending'}">${esc(lease?.status||'Invited')}</span></td><td></td></tr>`;}).join('')||'<tr><td colspan="6">No tenant profiles found.</td></tr>';
+  $('#tenantCount').textContent=`${rows.length} tenants`;
+  const navCount=$('.nav-link[data-view="tenants"] em');if(navCount)navCount.textContent=String(rows.length);
+}
+function renderCaretakers(){
+  const root=$('#caretakerCards');if(!root)return;
+  const people=state.profiles.filter(p=>p.role==='caretaker');
+  root.innerHTML=people.map(p=>{const assigned=state.assignments.filter(a=>a.caretaker_id===p.id).map(a=>propertyBy(a.property_id)).filter(Boolean);const units=state.units.filter(u=>assigned.some(x=>x.id===u.property_id)).length;return `<article class="caretaker-card"><div class="caretaker-top"><span class="avatar avatar-blue">${esc((p.full_name||p.email).split(/\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase())}</span><div><h3>${esc(p.full_name||'Caretaker')}</h3><p>${esc(p.email)}</p></div></div><div class="caretaker-property"><span>Assigned units</span><b>${units}</b></div><div class="caretaker-contact">${esc(assigned.map(a=>a.name).join(', ')||'No assigned property')}</div></article>`;}).join('')||'<p class="muted">No caretakers invited yet.</p>';
+}
+function renderAgreements(){
+  const root=$('#agreementRows');if(!root)return;
+  const rows=state.agreements.map(a=>{const l=leaseBy(a.lease_id);return {a,l};}).filter(x=>x.l&& (state.profile.role==='landlord'||state.profile.role==='caretaker'||x.l.tenant_id===state.user.id));
+  root.innerHTML=rows.map(({a,l})=>{const tenant=leaseTenant(l);let action=`<button class="text-button" data-action="agreement-open" data-id="${a.id}">Open</button>`;
+    if(state.profile.role==='tenant'&&a.status==='sent')action+=` <button class="text-button" data-action="agreement-sign" data-id="${a.id}">Review & sign</button>`;
+    if(state.profile.role==='landlord'&&a.status==='tenant_signed')action+=` <button class="text-button" data-action="agreement-activate" data-id="${a.id}">Mark active</button>`;
+    return `<tr><td><b>${esc(tenant?.full_name||tenant?.email||'Tenant')}</b></td><td><b>${esc(unitProperty(leaseUnit(l))?.name||'Property')}</b><small class="table-sub">${esc(leaseUnit(l)?.unit_name||'Unit')}</small></td><td>${dateText(a.sent_at?.slice(0,10))}</td><td>${dateText(l.start_date)}</td><td><span class="activity-tag ${a.status==='active'?'tag-done':'tag-pending'}">${esc(a.status.replace('_',' '))}</span></td><td>${action}</td></tr>`;}).join('')||'<tr><td colspan="6">No agreements yet.</td></tr>';
+  const dot=$('.nav-link[data-view="agreements"] .nav-dot');if(dot)dot.hidden=!rows.some(({a})=>['sent','tenant_signed'].includes(a.status));
+}
+function renderMaintenance(){
+  const root=$('#maintenanceRows');if(!root)return;
+  const list=state.maintenance.slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  root.innerHTML=list.map(r=>{const u=unitBy(r.unit_id),p=unitProperty(u),reporter=personBy(r.reported_by);const action=state.profile.role==='tenant'?'':`<select data-action="maintenance-status" data-id="${r.id}"><option value="open" ${r.status==='open'?'selected':''}>Open</option><option value="in_progress" ${r.status==='in_progress'?'selected':''}>In progress</option><option value="resolved" ${r.status==='resolved'?'selected':''}>Resolved</option></select>`;return `<tr><td><b>${esc(r.title)}</b><small class="table-sub">${esc(r.description||'')}</small></td><td>${esc(p?.name||'Property')} · ${esc(u?.unit_name||'Unit')}</td><td>${esc(reporter?.full_name||reporter?.email||'User')}</td><td>${dateText(r.created_at?.slice(0,10))}</td><td><span class="activity-tag ${r.priority==='urgent'?'tag-pending':'tag-paid'}">${esc(r.priority)}</span></td><td><span class="activity-tag ${r.status==='resolved'?'tag-done':'tag-pending'}">${esc(r.status.replace('_',' '))}</span> ${action}</td></tr>`;}).join('')||'<tr><td colspan="6">No maintenance requests yet.</td></tr>';
+  const count=$('.nav-link[data-view="maintenance"] em');if(count)count.textContent=String(list.filter(r=>r.status!=='resolved').length);
+  $('#maintenanceOpen').textContent=list.filter(x=>x.status==='open').length;$('#maintenanceProgress').textContent=list.filter(x=>x.status==='in_progress').length;$('#maintenanceResolved').textContent=list.filter(x=>x.status==='resolved').length;
+}
+function renderPayments(){
+  const root=$('#paymentRows');if(!root)return;const list=state.payments.slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  root.innerHTML=list.map(p=>{const l=leaseBy(p.lease_id),tenant=leaseTenant(l),u=leaseUnit(l);let action='';if(state.profile.role==='landlord'&&p.status==='pending')action=`<button class="text-button" data-action="payment-confirm" data-id="${p.id}">Confirm</button> <button class="text-button" data-action="payment-reject" data-id="${p.id}">Reject</button>`;return `<tr><td>${esc(tenant?.full_name||tenant?.email||'Tenant')}</td><td>${esc(unitProperty(u)?.name||'Property')} · ${esc(u?.unit_name||'Unit')}</td><td>${dateText(p.due_date)}</td><td>${money(p.amount)}</td><td>${esc(p.method.replace('_',' '))}<small class="table-sub">${esc(p.reference||'—')}</small></td><td><span class="activity-tag ${p.status==='confirmed'?'tag-done':'tag-pending'}">${esc(p.status)}</span> ${action}</td></tr>`;}).join('')||'<tr><td colspan="6">No payment records yet.</td></tr>';
+  const confirmed=list.filter(p=>p.status==='confirmed').reduce((s,p)=>s+Number(p.amount),0);const pending=list.filter(p=>p.status==='pending').reduce((s,p)=>s+Number(p.amount),0);
+  $('#paymentsConfirmed').textContent=money(confirmed);$('#paymentsPending').textContent=money(pending);$('#paymentsCount').textContent=String(list.length);
+}
+function renderOverview(){
+  const cards=$$('#view-overview .stats-grid .stat-card');if(!cards.length)return;
+  const role=state.profile.role;
+  const unitCount=state.units.length, activeLeases=state.leases.filter(l=>l.status==='active');
+  const mainGrid=$('#view-overview .content-grid');
+  if(role==='tenant'){
+    const lease=state.leases.find(l=>l.tenant_id===state.user.id&&l.status!=='ended');
+    const unit=leaseUnit(lease),property=unitProperty(unit);
+    cards[0].querySelector('.stat-head span').textContent='My rental';cards[0].querySelector('.stat-number').innerHTML=`${esc(unit?.unit_name||'Not assigned')} <small>${esc(property?.name||'unit')}</small>`;cards[0].querySelector('.stat-foot').textContent=lease?`Lease ${lease.status.replace('_',' ')}`:'No lease assigned yet';
+    cards[1].querySelector('.stat-head span').textContent='Annual rent';cards[1].querySelector('.stat-number').textContent=money(lease?.annual_rent||0);cards[1].querySelector('.occupancy-track').hidden=true;cards[1].querySelector('.stat-foot').textContent=lease?`${dateText(lease.start_date)} – ${dateText(lease.end_date)}`:'Your lease dates will appear here';
+    cards[2].querySelector('.stat-head span').textContent='Payment records';cards[2].querySelector('.stat-number').textContent=String(state.payments.length);cards[2].querySelector('.stat-foot').textContent=`${state.payments.filter(p=>p.status==='confirmed').length} confirmed · ${state.payments.filter(p=>p.status==='pending').length} awaiting confirmation`;
+    cards[3].querySelector('.stat-head span').textContent='Maintenance requests';cards[3].querySelector('.stat-number').textContent=String(state.maintenance.filter(r=>r.status!=='resolved').length);cards[3].querySelector('.stat-foot').textContent='Open requests on your account';
+    if(mainGrid)mainGrid.innerHTML=`<section class="panel properties-panel"><div class="panel-heading"><div><h2>My home</h2><p>Your current rental details</p></div></div>${lease?`<div class="property-row"><div class="property-thumb thumb-one"><span>RENTAL</span></div><div class="property-main"><h3>${esc(property?.name||'Property')}</h3><p>${esc([property?.address,property?.city].filter(Boolean).join(', '))}</p></div><div class="property-status">${esc(unit?.unit_name||'Unit')}</div><div class="property-rent">${money(lease.annual_rent)} <small>/ year</small></div></div>`:'<p class="muted">Your landlord has not assigned a unit yet.</p>'}<p class="subheading" style="margin-top:16px">Use the menu to open your agreement, report maintenance, or submit a rent payment record.</p></section>`;
+    $('#view-overview .activity-panel')?.setAttribute('hidden','');return;
+  }
+  if(mainGrid){if(!$('.property-list',mainGrid))mainGrid.innerHTML=overviewGridTemplate;mainGrid.hidden=false;}
+  $('#view-overview .activity-panel')?.setAttribute('hidden','');
+  cards[0].querySelector('.stat-number').innerHTML=`${state.properties.length} <small>properties</small>`;cards[0].querySelector('.stat-foot').textContent='Live Supabase records';
+  cards[1].querySelector('.stat-number').innerHTML=`${activeLeases.length} <small>of ${unitCount} units</small>`;cards[1].querySelector('.occupancy-track').hidden=true;cards[1].querySelector('.stat-foot').textContent=`${Math.max(0,unitCount-activeLeases.length)} available units`;
+  const collected=state.payments.filter(p=>p.status==='confirmed').reduce((s,p)=>s+Number(p.amount),0);cards[2].querySelector('.stat-number').textContent=money(collected);cards[2].querySelector('.stat-foot').textContent='Confirmed rent payment records';
+  const needs=state.maintenance.filter(r=>r.status!=='resolved').length+state.agreements.filter(a=>['sent','tenant_signed'].includes(a.status)).length;cards[3].querySelector('.stat-number').innerHTML=`${needs} <small>items</small>`;cards[3].querySelector('.stat-foot').textContent=`${state.agreements.filter(a=>['sent','tenant_signed'].includes(a.status)).length} agreements · ${state.maintenance.filter(r=>r.status!=='resolved').length} requests`;
+  const list=$('#view-overview .property-list');if(list)list.innerHTML=state.properties.slice(0,3).map(p=>`<article class="property-row"><div class="property-thumb thumb-one"><span>${esc((p.property_type||'').toUpperCase())}</span></div><div class="property-main"><h3>${esc(p.name)}</h3><p>${esc([p.address,p.city].filter(Boolean).join(', '))} · ${state.units.filter(u=>u.property_id===p.id).length} units</p></div><div class="property-status">${state.units.filter(u=>u.property_id===p.id).length} units</div><div class="property-rent">${money(p.monthly_rent)} <small>/ month</small></div></article>`).join('')||'<p class="muted">No properties yet. Add your first property.</p>';
+  $('#todayLabel').textContent=new Intl.DateTimeFormat('en-NG',{weekday:'long',day:'2-digit',month:'long',year:'numeric',timeZone:'Africa/Lagos'}).format(new Date()).toUpperCase();
+}
+function populateSelects(){
+  const vacant=state.units.filter(u=>!state.leases.some(l=>l.unit_id===u.id&&l.status!=='ended'));
+  const tenantUnit=$('#tenantUnitSelect');if(tenantUnit)tenantUnit.innerHTML=optionMarkup(vacant,u=>unitLabel(u))||'<option value="">No vacant units available</option>';
+  const caretakerProps=$('#caretakerPropertySelect');if(caretakerProps)caretakerProps.innerHTML=optionMarkup(state.properties,p=>p.name)||'<option value="">Add a property first</option>';
+  const leaseOptions=state.leases.filter(l=>l.status!=='ended');
+  ['agreementLeaseSelect','paymentLeaseSelect'].forEach(id=>{const el=$(`#${id}`);if(el)el.innerHTML=optionMarkup(leaseOptions,l=>leaseLabel(l))||'<option value="">No lease available</option>';});
+  const maintenanceUnits=$('#maintenanceUnitSelect');if(maintenanceUnits)maintenanceUnits.innerHTML=optionMarkup(state.units,u=>unitLabel(u))||'<option value="">Add a property and unit first</option>';
+}
+function renderAll(){renderProperties($('#propertySearch')?.value||'');renderTenants($('#tenantSearch')?.value||'');renderCaretakers();renderAgreements();renderMaintenance();renderPayments();renderOverview();}
+
+async function submitProperty(form){
+  const d=new FormData(form), unitCount=Math.min(200,Math.max(1,Number(d.get('units'))||1));
+  const {data:p,error}=await client().from('properties').insert({landlord_id:state.user.id,name:d.get('name').trim(),property_type:d.get('type'),address:d.get('address').trim(),city:d.get('city').trim()||null,monthly_rent:Number(d.get('rent'))||0}).select().single();
+  if(error)throw error;
+  const units=Array.from({length:unitCount},(_,i)=>({property_id:p.id,unit_name:`Unit ${i+1}`,monthly_rent:unitCount?((Number(d.get('rent'))||0)/unitCount):0}));
+  const unitResult=await client().from('units').insert(units);if(unitResult.error)throw new Error(`Property saved, but unit creation failed: ${unitResult.error.message}`);
+  await loadWorkspace();toast('Property and units saved.');
+}
+async function invokeFunction(name,body){const {data,error}=await client().functions.invoke(name,{body});if(error)throw new Error(`${name} function: ${error.message}. Deploy the function and set its Supabase secrets.`);if(data?.error)throw new Error(data.error);return data;}
+async function submitTenant(form){
+  const d=new FormData(form);if(!d.get('unit_id'))throw new Error('Add a property and unit before inviting a tenant.');
+  await invokeFunction('invite-member',{role:'tenant',email:d.get('email').trim(),full_name:d.get('name').trim(),unit_id:d.get('unit_id'),start_date:d.get('start_date'),end_date:d.get('end_date'),annual_rent:Number(d.get('annual_rent'))});
+  await loadWorkspace();toast('Tenant invitation sent by email and lease created.');
+}
+async function submitCaretaker(form){const d=new FormData(form),property_ids=d.getAll('property_ids');if(!property_ids.length)throw new Error('Choose at least one property for the caretaker.');await invokeFunction('invite-member',{role:'caretaker',email:d.get('email').trim(),full_name:d.get('name').trim(),property_ids});await loadWorkspace();toast('Caretaker invitation sent and access assigned.');}
+async function submitAgreement(form){
+  const d=new FormData(form),lease=leaseBy(d.get('lease_id')),file=d.get('document');if(!lease)throw new Error('Choose an active lease.');if(!(file instanceof File)||!file.size)throw new Error('Choose a PDF agreement.');if(file.size>15*1024*1024)throw new Error('Agreement PDFs must be 15 MB or smaller.');
+  const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');const path=`${lease.id}/${crypto.randomUUID()}_${safeName}`;
+  const uploaded=await client().storage.from('rental-agreements').upload(path,file,{contentType:'application/pdf',upsert:false});if(uploaded.error)throw uploaded.error;
+  const {data:agreement,error}=await client().from('agreements').insert({lease_id:lease.id,uploaded_by:state.user.id,storage_path:path,status:'sent',sent_at:new Date().toISOString()}).select().single();
+  if(error){await client().storage.from('rental-agreements').remove([path]);throw error;}
+  await loadWorkspace();
+  try{await invokeFunction('notify-agreement',{agreement_id:agreement.id});toast('Agreement uploaded privately and email notification sent.');}
+  catch(e){toast(`Agreement is saved in the tenant portal, but email was not sent: ${e.message}`);}
+}
+async function submitMaintenance(form){const d=new FormData(form);const {error}=await client().from('maintenance_requests').insert({unit_id:d.get('unit_id'),reported_by:state.user.id,title:d.get('title').trim(),description:d.get('description').trim()||null,priority:d.get('priority'),status:'open'});if(error)throw error;await loadWorkspace();toast('Maintenance request saved.');}
+async function submitPayment(form){const d=new FormData(form),tenant=state.profile.role==='tenant';const record={lease_id:d.get('lease_id'),amount:Number(d.get('amount')),due_date:d.get('due_date'),method:d.get('method'),reference:d.get('reference').trim()||null,reported_by:state.user.id,status:tenant?'pending':'confirmed'};if(!tenant){record.paid_at=new Date().toISOString();record.verified_by=state.user.id;}const {error}=await client().from('payments').insert(record);if(error)throw error;await loadWorkspace();toast(tenant?'Payment details submitted for landlord confirmation.':'Payment recorded as confirmed.');}
+
+async function actionClick(event){const button=event.target.closest('[data-action]');if(!button)return;const {action,id}=button.dataset;
+  try{
+    if(action==='agreement-open'){const a=state.agreements.find(x=>x.id===id);if(!a)throw new Error('Agreement not found.');const tab=window.open('about:blank','_blank');const {data,error}=await client().storage.from('rental-agreements').createSignedUrl(a.storage_path,120);if(error){tab?.close();throw error;}if(tab){tab.opener=null;tab.location=data.signedUrl;}else toast('Your browser blocked the new tab. Allow pop-ups and try again.');}
+    if(action==='agreement-sign'){const signedName=prompt('Type your full legal name to acknowledge this agreement:');if(!signedName?.trim())return;const {error}=await client().from('agreements').update({status:'tenant_signed',signed_name:signedName.trim()}).eq('id',id);if(error)throw error;await loadWorkspace();toast('Your acknowledgement was recorded.');}
+    if(action==='agreement-activate'){const agreement=state.agreements.find(a=>a.id===id);const {error:leaseError}=await client().from('leases').update({status:'active'}).eq('id',agreement?.lease_id);if(leaseError)throw leaseError;const {error}=await client().from('agreements').update({status:'active'}).eq('id',id);if(error)throw error;await loadWorkspace();toast('Lease and agreement marked active.');}
+    if(action==='payment-confirm'||action==='payment-reject'){const status=action==='payment-confirm'?'confirmed':'rejected';const {error}=await client().from('payments').update({status,verified_by:state.user.id,paid_at:status==='confirmed'?new Date().toISOString():null}).eq('id',id);if(error)throw error;await loadWorkspace();toast(`Payment ${status}.`);}
+  }catch(e){toast(e.message||'Could not complete this action.');}
+}
+async function actionChange(event){const el=event.target.closest('[data-action="maintenance-status"]');if(!el)return;try{const {error}=await client().from('maintenance_requests').update({status:el.value,resolved_at:el.value==='resolved'?new Date().toISOString():null}).eq('id',el.dataset.id);if(error)throw error;await loadWorkspace();toast('Maintenance status updated.');}catch(e){toast(e.message||'Could not update the request.');}}
+
+function showAuthError(message){$('#authError').textContent=message||'';}
+async function handleSession(session){
+  state.user=session.user;
+  const {data:profile,error}=await client().from('profiles').select('id,full_name,email,role').eq('id',session.user.id).maybeSingle();
+  if(error||!profile){$('#loginForm').hidden=true;$('#authSetup').hidden=true;$('#roleMessage').hidden=false;$('#roleMessageText').textContent=error?`Could not load your profile: ${error.message}`:'Your profile row is missing. Ask the landlord to invite this account again.';return;}
+  if(!['landlord','caretaker','tenant'].includes(profile.role)){showAuthError('This account has an unsupported role. Ask the landlord to update it.');return;}
+  state.profile=profile;$('#authGate').hidden=true;document.body.classList.remove('auth-loading');document.body.classList.add('connected-mode');setRoleUI();await loadWorkspace();
+}
+async function initializeAuth(){
+  const db=client();if(!db){$('#authGate').hidden=false;$('#loginForm').hidden=true;$('#authSetup').hidden=false;return;}
+  $('#authGate').hidden=false;document.body.classList.add('auth-loading');
+  $('#loginForm').addEventListener('submit',async e=>{e.preventDefault();showAuthError('');const d=new FormData(e.currentTarget);const {error}=await db.auth.signInWithPassword({email:d.get('email'),password:d.get('password')});if(error)showAuthError(error.message);});
+  $('#resetPassword').addEventListener('click',async()=>{const email=$('#loginForm [name=email]').value;if(!email){showAuthError('Enter your email address first.');return;}const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:`${location.origin}${location.pathname}`});showAuthError(error?`Could not send reset email: ${error.message}`:'Password reset email sent.');});
+  $('#recoveryForm').addEventListener('submit',async e=>{e.preventDefault();const d=new FormData(e.currentTarget),err=$('#recoveryError');err.textContent='';if(d.get('password')!==d.get('confirmPassword')){err.textContent='Passwords do not match.';return;}const {error}=await db.auth.updateUser({password:d.get('password')});if(error){err.textContent=error.message;return;}await db.auth.signOut();err.textContent='Password updated. Sign in again.';});
+  db.auth.onAuthStateChange((event,session)=>{setTimeout(()=>{if(event==='PASSWORD_RECOVERY'){$('#loginForm').hidden=true;$('#recoveryForm').hidden=false;$('#authTitle').textContent='Choose a new password';$('#authSubtitle').textContent='Use at least eight characters.';}else if(session)handleSession(session);else{state.user=null;state.profile=null;document.body.classList.remove('connected-mode');$('#roleMessage').hidden=true;$('#recoveryForm').hidden=true;$('#loginForm').hidden=false;$('#authGate').hidden=false;document.body.classList.add('auth-loading');}},0);});
+  $('#signOutButton').addEventListener('click',()=>db.auth.signOut());$('#logoutButton').addEventListener('click',()=>db.auth.signOut());
+  const {data:{session}}=await db.auth.getSession();if(session)await handleSession(session);
+}
+
+$$('[data-view]').forEach(link=>link.addEventListener('click',e=>{e.preventDefault();setView(link.dataset.view);}));
+$$('[data-view-link]').forEach(el=>el.addEventListener('click',()=>setView(el.dataset.viewLink)));
+$$('[data-modal]').forEach(button=>button.addEventListener('click',()=>{if(button.hidden)return;populateSelects();const d=$(`#${button.dataset.modal}`);if(d&&!d.hidden)d.showModal();}));
+$('#mobileMenu').addEventListener('click',()=>$('#sidebar').classList.toggle('open'));
+$('#profileButton').addEventListener('click',()=>$('#profileModal').showModal());
+$('#propertySearch').addEventListener('input',e=>renderProperties(e.target.value));$('#propertyTypeFilter').addEventListener('change',()=>renderProperties($('#propertySearch').value));$('#propertyCityFilter').addEventListener('change',()=>renderProperties($('#propertySearch').value));$('#tenantSearch').addEventListener('input',e=>renderTenants(e.target.value));
+$('#propertyForm').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();try{await submitProperty(e.currentTarget);e.currentTarget.closest('dialog').close();e.currentTarget.reset();}catch(error){toast(error.message||'Could not save property.');}});
+$('#tenantForm').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();try{await submitTenant(e.currentTarget);e.currentTarget.closest('dialog').close();e.currentTarget.reset();}catch(error){toast(error.message||'Could not invite tenant.');}});
+$('#caretakerForm').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();try{await submitCaretaker(e.currentTarget);e.currentTarget.closest('dialog').close();e.currentTarget.reset();}catch(error){toast(error.message||'Could not invite caretaker.');}});
+$('#agreementForm').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();const button=e.submitter;button.disabled=true;try{await submitAgreement(e.currentTarget);e.currentTarget.closest('dialog').close();e.currentTarget.reset();}catch(error){toast(error.message||'Could not send agreement.');}finally{button.disabled=false;}});
+$('#maintenanceForm').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();try{await submitMaintenance(e.currentTarget);e.currentTarget.closest('dialog').close();e.currentTarget.reset();}catch(error){toast(error.message||'Could not save request.');}});
+$('#paymentForm').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();try{await submitPayment(e.currentTarget);e.currentTarget.closest('dialog').close();e.currentTarget.reset();}catch(error){toast(error.message||'Could not save payment.');}});
+$('#profileForm').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();const name=new FormData(e.currentTarget).get('full_name').trim();try{const {error}=await client().from('profiles').update({full_name:name}).eq('id',state.user.id);if(error)throw error;state.profile.full_name=name;const own=state.profiles.find(p=>p.id===state.user.id);if(own)own.full_name=name;setRoleUI();e.currentTarget.closest('dialog').close();toast('Profile saved.');}catch(error){toast(error.message||'Could not save profile.');}});
+document.addEventListener('click',actionClick);document.addEventListener('change',actionChange);
+
+initializeAuth();

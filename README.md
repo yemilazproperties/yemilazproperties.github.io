@@ -1,40 +1,61 @@
 # Yemilaz Properties
 
-A first-pass property management dashboard for a landlord with a caretaker team and tenants. Supabase email/password sign-in and landlord property creation are connected. Other screens still use demo data and are not ready for real tenant records yet.
+Yemilaz Properties is a Nigerian property management portal for landlords, caretakers, and tenants. It uses Supabase Auth, Postgres with row-level security, and private Supabase Storage. The interface uses NGN and Africa/Lagos time.
 
-## Open locally
+## What is connected
 
-Run a local server from this folder so Supabase Auth can use a normal web origin:
+- Landlords can add properties and units, invite tenants with lease details, assign caretakers to selected properties, upload private PDF agreements, review tenant acknowledgements, track maintenance, and record/confirm bank, cash, and POS payments.
+- Caretakers can see assigned properties, tenant and lease details for those properties, view agreements, and update maintenance requests.
+- Tenants can see their rental details and private agreements, acknowledge agreements, report maintenance, and submit payment records for landlord confirmation.
+- Supabase row-level security controls record access. Agreement files are held in a private bucket. Email invitations use Supabase Auth; agreement email notices use Resend through a server-side Edge Function.
+
+Payments are records for offline Nigerian payment methods; this version does not charge cards or connect to a bank. The typed agreement acknowledgement is a record of acknowledgement, not a verified digital-signature service.
+
+## Run on your computer
+
+Open PowerShell in this folder and run:
 
 ```powershell
 python -m http.server 8000
 ```
 
-Then visit `http://localhost:8000`. Add this local URL and your GitHub Pages URL to Supabase Auth's allowed redirect URLs.
-
-## First version includes
-
-- Portfolio overview, properties, tenants, caretaker profiles, agreements, maintenance, and rent screens.
-- Responsive layouts for desktop and mobile.
-- Working local demo forms for adding properties, tenants, and caretakers.
-- Tenant search and Supabase SQL schema with initial row-level security policies.
+Open `http://localhost:8000`. Keep PowerShell open while using the local site. Press `Ctrl+C` there to stop it.
 
 ## Supabase setup
 
-1. This starter is configured for project `qghumlexkybfndcrkgqk` in `eu-west-1` (Ireland).
-2. Run the updated `supabase/schema.sql` in that project's SQL Editor. It adds `landlord_id` to an older `properties` table if it is missing; existing property rows are left untouched and will remain unassigned until you set their owner. New Auth accounts get a tenant profile by default.
-3. Create your first Auth account in the Supabase Dashboard. In the SQL Editor, promote only your own account to landlord with `update public.profiles set role='landlord' where email='YOUR_EMAIL';`. If you already have property rows from an earlier setup, first inspect them and then assign each row to your landlord profile (replace the email with yours): `update public.properties set landlord_id=(select id from public.profiles where email='YOUR_EMAIL' and role='landlord') where landlord_id is null and (select count(*) from public.profiles where email='YOUR_EMAIL' and role='landlord')=1;`.
-4. Sign in on the site with that account. The Properties page reads and creates records in Supabase.
-5. Add private Storage policies for the `rental-agreements` bucket before uploading any real agreements. Keep signed agreements private.
-6. The project URL and publishable key are in `config.js`. They are browser credentials and can be committed for GitHub Pages; they are not secrets. Keep RLS enabled and never add a Supabase secret/service-role key or email-provider credential to this repository.
-7. Invitations and agreement email delivery need a Supabase Edge Function and an email provider. Store provider credentials in Supabase function secrets. Email should link to the authenticated tenant portal, not expose a public agreement URL.
+1. This package is configured for Supabase project `qghumlexkybfndcrkgqk` in `eu-west-1`. `config.js` contains only the project URL and publishable browser key; it must never contain a service-role key.
+2. In the Supabase Dashboard, open **SQL Editor**, paste all of `supabase/schema.sql`, and run it. It preserves existing records, replaces the older recursive policies on the app tables, creates the private `rental-agreements` Storage bucket, and adds access policies.
+3. Confirm your own profile role is `landlord` in `public.profiles`. If needed, run this with your own email:
 
-Before using real tenant information, review the RLS policies against your account setup and check landlord, caretaker, and tenant access separately. Landlord sign-in and property creation are connected; caretaker/tenant portals, invitations, document signing, payment processing, and agreement email delivery are not yet implemented.
+   ```sql
+   update public.profiles set role = 'landlord' where lower(email) = lower('YOUR_EMAIL');
+   ```
 
-## Hosting
+   Existing properties with no owner are automatically assigned only when the database has exactly one landlord profile. If there is more than one, review and assign each property's `landlord_id` deliberately.
+4. In **Authentication → URL Configuration**, set the deployed GitHub Pages site as the Site URL and add both `https://yemilazproperties.github.io/**` and `http://localhost:8000/**` to the Redirect URLs. Configure a working SMTP sender under **Authentication → SMTP Settings** for invitation emails. Supabase's default email rate limits are for development.
+5. Deploy the Edge Functions below and add their secrets. For Resend, verify the sending domain and configure `EMAIL_FROM` to use that verified domain.
 
-This is a static frontend intended for GitHub Pages; Render is not needed for the current build. The interface uses Nigerian English, Africa/Lagos time, Nigerian addresses, and NGN (₦). The Supabase project is hosted in `eu-west-1`; that is the database region, separate from the website's Nigerian locale. Since the GitHub Pages site is public, only the app shell is public—tenant records remain behind Supabase sign-in and RLS. Add your GitHub Pages domain to Supabase Auth's allowed redirect URLs before using password reset or email links. A Supabase Edge Function can handle invitations and email without a separate Render service.
+### Deploy Edge Functions
 
-## Suggested next step
+Install the Supabase CLI, then run these commands from this folder after signing in to the CLI:
 
-Next, add secure landlord invitations and role-specific caretaker/tenant portals. Do not upload actual rental agreements until private Storage policies and tenant access checks are in place.
+```powershell
+supabase login
+supabase functions deploy invite-member --project-ref qghumlexkybfndcrkgqk
+supabase functions deploy notify-agreement --project-ref qghumlexkybfndcrkgqk
+supabase secrets set 'SITE_URL=https://yemilazproperties.github.io' 'RESEND_API_KEY=re_your_actual_key' 'EMAIL_FROM=Yemilaz Properties <notices@your-verified-domain.com>' --project-ref qghumlexkybfndcrkgqk
+```
+
+Supabase supplies `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to deployed Edge Functions. Do not paste the service-role key into GitHub or `config.js`. If you are not using Resend yet, `invite-member` can send Supabase Auth invitations after SMTP is set; agreement email notices will wait until the Resend secrets are configured.
+
+## Publish with GitHub Pages
+
+Copy the contents of this package into the root of your repository `yemilazproperties/yemilazproperties.github.io`, commit, and push to `main`. In GitHub, open **Settings → Pages** and choose **Deploy from a branch**, branch `main`, folder `/ (root)`. Your sign-in URL is:
+
+`https://yemilazproperties.github.io/`
+
+Render is not needed for this static frontend or for the email functions. Supabase hosts the database and Edge Functions.
+
+## Data and access
+
+Keep RLS enabled. Before using real tenant information, use separate landlord, caretaker, and tenant accounts to review the pages and confirm that each role can see only its assigned records. Do not add private tenant documents to public GitHub Pages or public Storage buckets. See `supabase/schema.sql` for the database structure and policies.
