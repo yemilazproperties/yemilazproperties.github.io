@@ -11,6 +11,17 @@ alter table public.properties
 
 alter table public.properties alter column property_name set default 'Property';
 
+-- Accept the database's current property types and the legacy website values
+-- until GitHub Pages finishes redeploying the updated form.
+alter table public.properties
+  drop constraint if exists properties_property_type_check;
+alter table public.properties
+  add constraint properties_property_type_check
+  check (property_type = any (array[
+    'house','apartment','shop','office','land','other',
+    'residential','commercial','mixed_use'
+  ]::text[]));
+
 -- Keep the existing target_property argument names so PostgreSQL can replace
 -- the landlord helper functions without changing their named arguments.
 create or replace function public.is_landlord_property(target_property uuid)

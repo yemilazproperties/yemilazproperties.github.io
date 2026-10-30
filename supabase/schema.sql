@@ -33,6 +33,12 @@ alter table public.properties add column if not exists name text not null defaul
 alter table public.properties add column if not exists property_name text not null default 'Property';
 alter table public.properties alter column property_name set default 'Property';
 alter table public.properties add column if not exists property_type text not null default 'house';
+alter table public.properties drop constraint if exists properties_property_type_check;
+alter table public.properties add constraint properties_property_type_check
+  check (property_type = any (array[
+    'house','apartment','shop','office','land','other',
+    'residential','commercial','mixed_use'
+  ]::text[]));
 alter table public.properties add column if not exists address text not null default '';
 alter table public.properties add column if not exists city text;
 alter table public.properties add column if not exists monthly_rent numeric(14,2) not null default 0;
