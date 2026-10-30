@@ -19,7 +19,8 @@ create table if not exists public.properties (
   id uuid primary key default gen_random_uuid(),
   landlord_id uuid references public.profiles(id) on delete cascade,
   name text not null default 'Property',
-  property_type text not null default 'residential',
+  property_name text not null default 'Property',
+  property_type text not null default 'house',
   address text not null default '',
   city text,
   monthly_rent numeric(14,2) not null default 0,
@@ -29,7 +30,9 @@ create table if not exists public.properties (
 );
 alter table public.properties add column if not exists landlord_id uuid references public.profiles(id) on delete cascade;
 alter table public.properties add column if not exists name text not null default 'Property';
-alter table public.properties add column if not exists property_type text not null default 'residential';
+alter table public.properties add column if not exists property_name text not null default 'Property';
+alter table public.properties alter column property_name set default 'Property';
+alter table public.properties add column if not exists property_type text not null default 'house';
 alter table public.properties add column if not exists address text not null default '';
 alter table public.properties add column if not exists city text;
 alter table public.properties add column if not exists monthly_rent numeric(14,2) not null default 0;
@@ -187,32 +190,32 @@ as $$ select public.can_manage_property(target_property) or exists(
 create or replace function public.is_landlord_property(target_property uuid)
 returns boolean language sql stable security definer set search_path=public set row_security=off
 as $$ select exists(select 1 from public.properties p where p.id=target_property and p.landlord_id=auth.uid()) $$;
-create or replace function public.can_access_unit(target uuid)
+create or replace function public.can_access_unit(target_unit uuid)
 returns boolean language sql stable security definer set search_path=public set row_security=off
-as $$ select exists(select 1 from public.units u where u.id=target and
+as $$ select exists(select 1 from public.units u where u.id=target_unit and
   (public.can_manage_property(u.property_id) or exists(select 1 from public.leases l where l.unit_id=u.id and l.tenant_id=auth.uid()))) $$;
-create or replace function public.is_landlord_unit(target uuid)
+create or replace function public.is_landlord_unit(target_unit uuid)
 returns boolean language sql stable security definer set search_path=public set row_security=off
-as $$ select exists(select 1 from public.units u join public.properties p on p.id=u.property_id where u.id=target and p.landlord_id=auth.uid()) $$;
-create or replace function public.can_access_lease(target uuid)
-returns boolean language sql stable security definer set search_path=public set row_security=off
-as $$ select exists(select 1 from public.leases l join public.units u on u.id=l.unit_id
-  where l.id=target and (l.tenant_id=auth.uid() or public.can_manage_property(u.property_id))) $$;
-create or replace function public.can_manage_lease(target uuid)
+as $$ select exists(select 1 from public.units u join public.properties p on p.id=u.property_id where u.id=target_unit and p.landlord_id=auth.uid()) $$;
+create or replace function public.can_access_lease(target_lease uuid)
 returns boolean language sql stable security definer set search_path=public set row_security=off
 as $$ select exists(select 1 from public.leases l join public.units u on u.id=l.unit_id
-  join public.properties p on p.id=u.property_id where l.id=target and p.landlord_id=auth.uid()) $$;
-create or replace function public.can_manage_unit(target uuid)
+  where l.id=target_lease and (l.tenant_id=auth.uid() or public.can_manage_property(u.property_id))) $$;
+create or replace function public.can_manage_lease(target_lease uuid)
+returns boolean language sql stable security definer set search_path=public set row_security=off
+as $$ select exists(select 1 from public.leases l join public.units u on u.id=l.unit_id
+  join public.properties p on p.id=u.property_id where l.id=target_lease and p.landlord_id=auth.uid()) $$;
+create or replace function public.can_manage_unit(target_unit uuid)
 returns boolean language sql stable security definer set search_path=public set row_security=off
 as $$ select exists(select 1 from public.units u join public.properties p on p.id=u.property_id
-  where u.id=target and (p.landlord_id=auth.uid() or exists(select 1 from public.property_caretakers pc where pc.property_id=p.id and pc.caretaker_id=auth.uid()))) $$;
-create or replace function public.can_view_profile(target uuid)
+  where u.id=target_unit and (p.landlord_id=auth.uid() or exists(select 1 from public.property_caretakers pc where pc.property_id=p.id and pc.caretaker_id=auth.uid()))) $$;
+create or replace function public.can_view_profile(target_profile uuid)
 returns boolean language sql stable security definer set search_path=public set row_security=off
-as $$ select target=auth.uid() or exists(
+as $$ select target_profile=auth.uid() or exists(
   select 1 from public.leases l join public.units u on u.id=l.unit_id join public.properties p on p.id=u.property_id
-  where l.tenant_id=target and (p.landlord_id=auth.uid() or exists(select 1 from public.property_caretakers pc where pc.property_id=p.id and pc.caretaker_id=auth.uid())))
+  where l.tenant_id=target_profile and (p.landlord_id=auth.uid() or exists(select 1 from public.property_caretakers pc where pc.property_id=p.id and pc.caretaker_id=auth.uid())))
 or exists(select 1 from public.property_caretakers pc join public.properties p on p.id=pc.property_id
-  where pc.caretaker_id=target and p.landlord_id=auth.uid()) $$;
+  where pc.caretaker_id=target_profile and p.landlord_id=auth.uid()) $$;
 
 create or replace function public.protect_profile_role()
 returns trigger language plpgsql security definer set search_path=public

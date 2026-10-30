@@ -64,7 +64,7 @@ async function loadWorkspace(){
   const tables=['properties','units','leases','profiles','property_caretakers','agreements','maintenance_requests','payments'];
   const results=await Promise.allSettled(tables.map(t=>fetchRows(t)));
   const failed=results.map((r,i)=>r.status==='rejected'?`${tables[i]}: ${r.reason.message}`:null).filter(Boolean);
-  results.forEach((r,i)=>{if(r.status==='fulfilled')state[{properties:'properties',units:'units',leases:'leases',profiles:'profiles',property_caretakers:'assignments',agreements:'agreements',maintenance_requests:'maintenance',payments:'payments'}[tables[i]]]=r.value;});
+  results.forEach((r,i)=>{if(r.status==='fulfilled'){const key={properties:'properties',units:'units',leases:'leases',profiles:'profiles',property_caretakers:'assignments',agreements:'agreements',maintenance_requests:'maintenance',payments:'payments'}[tables[i]];state[key]=key==='properties'?r.value.map(p=>({...p,name:(p.name&&p.name!=='Property'?p.name:p.property_name)||p.name||'Property'})):r.value;}});
   if(failed.length)toast(`Some records could not load. ${failed.join(' | ')}`);
   populateSelects();renderAll();
 }
@@ -87,7 +87,7 @@ async function renderProperties(filter=''){
     const units=state.units.filter(u=>u.property_id===p.id);const occupied=new Set(state.leases.filter(l=>l.status==='active').map(l=>l.unit_id));
     const caretakers=state.assignments.filter(a=>a.property_id===p.id).map(a=>personBy(a.caretaker_id)?.full_name).filter(Boolean).join(', ')||'No caretaker assigned';
     const photo=imageUrls[i];
-    return `<article class="property-card"><div class="card-image thumb-${['one','two','three'][i%3]}${photo?' has-photo':''}">${photo?`<img src="${esc(photo)}" alt="Photo of ${esc(p.name)}" loading="lazy">`:''}<span class="card-type">${esc((p.property_type||'residential').replace('_',' ').toUpperCase())}</span>${state.profile?.role==='landlord'?`<button class="property-edit-button" type="button" data-action="property-edit" data-id="${esc(p.id)}">Edit</button>`:''}</div><div class="property-card-body"><h3>${esc(p.name)}</h3><p>⌖ &nbsp;${esc([p.address,p.city].filter(Boolean).join(', '))}</p><div class="card-stats"><span><b>${units.length}</b> total units</span><span><b>${units.filter(u=>occupied.has(u.id)).length}</b> occupied</span></div><div class="card-footer"><span>${money(p.monthly_rent)} <small style="font-weight:400;color:#929a92">/ month</small></span><small>${esc(caretakers)}</small></div></div></article>`;
+    return `<article class="property-card"><div class="card-image thumb-${['one','two','three'][i%3]}${photo?' has-photo':''}">${photo?`<img src="${esc(photo)}" alt="Photo of ${esc(p.name)}" loading="lazy">`:''}<span class="card-type">${esc((p.property_type||'house').replace('_',' ').toUpperCase())}</span>${state.profile?.role==='landlord'?`<button class="property-edit-button" type="button" data-action="property-edit" data-id="${esc(p.id)}">Edit</button>`:''}</div><div class="property-card-body"><h3>${esc(p.name)}</h3><p>⌖ &nbsp;${esc([p.address,p.city].filter(Boolean).join(', '))}</p><div class="card-stats"><span><b>${units.length}</b> total units</span><span><b>${units.filter(u=>occupied.has(u.id)).length}</b> occupied</span></div><div class="card-footer"><span>${money(p.monthly_rent)} <small style="font-weight:400;color:#929a92">/ month</small></span><small>${esc(caretakers)}</small></div></div></article>`;
   }).join('')||'<p class="muted">No properties yet. Use “Add property” to create your first record.</p>';
   $('#propertyCount').textContent=`${list.length} properties`;
   const count=$('.nav-link[data-view="properties"] em');if(count)count.textContent=state.properties.length;
@@ -203,7 +203,7 @@ function prepareAddProperty(){
 }
 async function prepareEditProperty(property){
   const form=$('#propertyForm');form.reset();form.dataset.editId=property.id;
-  form.elements.name.value=property.name||'';form.elements.type.value=property.property_type||'residential';
+  form.elements.name.value=property.name||'';form.elements.type.value=property.property_type||'house';
   form.elements.address.value=property.address||'';form.elements.city.value=property.city||'';
   form.elements.rent.value=Number(property.monthly_rent)||0;
   $('#propertyModalTitle').textContent='Edit property';$('#propertyUnitsField').hidden=false;
@@ -215,7 +215,8 @@ async function prepareEditProperty(property){
 }
 async function submitProperty(form){
   const d=new FormData(form),file=propertyPhotoFile(form),editId=form.dataset.editId;
-  const values={name:String(d.get('name')||'').trim(),property_type:d.get('type'),address:String(d.get('address')||'').trim(),city:String(d.get('city')||'').trim()||null,monthly_rent:Number(d.get('rent'))||0};
+  const propertyName=String(d.get('name')||'').trim();
+  const values={name:propertyName,property_name:propertyName,property_type:d.get('type'),address:String(d.get('address')||'').trim(),city:String(d.get('city')||'').trim()||null,monthly_rent:Number(d.get('rent'))||0};
   if(editId){
     const unitCount=Math.min(200,Math.max(1,Number(d.get('units'))||1));
     const current=propertyBy(editId);if(!current)throw new Error('This property is no longer available. Refresh the page and try again.');

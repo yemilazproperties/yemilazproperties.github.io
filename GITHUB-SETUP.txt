@@ -1,7 +1,7 @@
 YEMILAZ PROPERTIES — SETUP
 
 1. Unzip this package into the root of your yemilazproperties.github.io repository.
-2. In Supabase SQL Editor, run supabase/schema.sql once. It replaces the old recursive RLS policies on these app tables and keeps existing rows.
+2. For the existing Yemilaz Properties Supabase project, run supabase/property-images-migration.sql in SQL Editor before redeploying. It adds the property fields required by this website and configures private property-photo storage. Keep existing rows.
 3. In Supabase Auth > URL Configuration, add https://yemilazproperties.github.io/** and http://localhost:8000/** to Redirect URLs. Set the production URL as Site URL.
 4. Set up SMTP in Supabase Auth so tenant/caretaker invitation emails can be delivered.
 5. Deploy invite-member and notify-agreement Edge Functions. See README.md for CLI commands and Resend secrets. Never put service-role keys in this GitHub repository.
