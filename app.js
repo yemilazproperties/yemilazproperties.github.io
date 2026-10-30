@@ -154,12 +154,31 @@ function renderOverview(){
   $('#todayLabel').textContent=new Intl.DateTimeFormat('en-NG',{weekday:'long',day:'2-digit',month:'long',year:'numeric',timeZone:'Africa/Lagos'}).format(new Date()).toUpperCase();
 }
 function populateSelects(){
-  const vacant=state.units.filter(u=>!state.leases.some(l=>l.unit_id===u.id&&l.status!=='ended'));
-  const tenantUnit=$('#tenantUnitSelect');if(tenantUnit)tenantUnit.innerHTML=optionMarkup(vacant,u=>unitLabel(u))||'<option value="">No vacant units available</option>';
+  populateTenantUnits();
   const caretakerProps=$('#caretakerPropertySelect');if(caretakerProps)caretakerProps.innerHTML=optionMarkup(state.properties,p=>p.name)||'<option value="">Add a property first</option>';
   const leaseOptions=state.leases.filter(l=>l.status!=='ended');
   ['agreementLeaseSelect','paymentLeaseSelect'].forEach(id=>{const el=$(`#${id}`);if(el)el.innerHTML=optionMarkup(leaseOptions,l=>leaseLabel(l))||'<option value="">No lease available</option>';});
   const maintenanceUnits=$('#maintenanceUnitSelect');if(maintenanceUnits)maintenanceUnits.innerHTML=optionMarkup(state.units,u=>unitLabel(u))||'<option value="">Add a property and unit first</option>';
+}
+function populateTenantUnits(){
+  const select=$('#tenantUnitSelect');if(!select)return;
+  const form=$('#tenantForm'),start=form?.elements.start_date.value||today(),end=form?.elements.end_date.value||'';
+  const hasValidDates=!end||end>=start;
+  const available=state.units.filter(unit=>hasValidDates&&!state.leases.some(lease=>{
+    if(lease.unit_id!==unit.id||lease.status==='ended')return false;
+    // A lease only reserves a unit when its dates overlap the dates being invited.
+    return (!end||lease.start_date<=end)&&(!start||lease.end_date>=start);
+  }));
+  select.innerHTML=available.length?optionMarkup(available,unitLabel):'<option value="" selected disabled>No units available for these dates</option>';
+  const hint=$('#tenantUnitHint'),button=$('#inviteTenantButton');
+  if(hint)hint.textContent=!hasValidDates?'Lease end date must be on or after its start date.':available.length?'Only units available for the selected lease dates are listed.':state.units.length?'No units are free for these lease dates. Change the dates or end the existing lease.':'Add a property with at least one unit before inviting a tenant.';
+  if(button)button.disabled=available.length===0;
+}
+function prepareTenantInvite(){
+  const form=$('#tenantForm');if(!form)return;
+  if(!form.elements.start_date.value)form.elements.start_date.value=today();
+  if(!form.elements.end_date.value){const end=new Date(`${form.elements.start_date.value}T12:00:00`);end.setFullYear(end.getFullYear()+1);form.elements.end_date.value=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Lagos'}).format(end);}
+  populateTenantUnits();
 }
 function renderAll(){renderProperties($('#propertySearch')?.value||'');renderTenants($('#tenantSearch')?.value||'');renderCaretakers();renderAgreements();renderMaintenance();renderPayments();renderOverview();}
 
@@ -293,7 +312,7 @@ async function initializeAuth(){
 
 $$('[data-view]').forEach(link=>link.addEventListener('click',e=>{e.preventDefault();setView(link.dataset.view);}));
 $$('[data-view-link]').forEach(el=>el.addEventListener('click',()=>setView(el.dataset.viewLink)));
-$$('[data-modal]').forEach(button=>button.addEventListener('click',()=>{if(button.hidden)return;populateSelects();const d=$(`#${button.dataset.modal}`);if(d&&!d.hidden){if(d.id==='propertyModal')prepareAddProperty();d.showModal();}}));
+$$('[data-modal]').forEach(button=>button.addEventListener('click',()=>{if(button.hidden)return;populateSelects();const d=$(`#${button.dataset.modal}`);if(d&&!d.hidden){if(d.id==='propertyModal')prepareAddProperty();if(d.id==='tenantModal')prepareTenantInvite();d.showModal();}}));
 $('#mobileMenu').addEventListener('click',()=>$('#sidebar').classList.toggle('open'));
 $('#profileButton').addEventListener('click',()=>$('#profileModal').showModal());
 $('#propertySearch').addEventListener('input',e=>renderProperties(e.target.value));$('#propertyTypeFilter').addEventListener('change',()=>renderProperties($('#propertySearch').value));$('#propertyCityFilter').addEventListener('change',()=>renderProperties($('#propertySearch').value));$('#tenantSearch').addEventListener('input',e=>renderTenants(e.target.value));
@@ -302,6 +321,7 @@ $('#propertyPhotoInput').addEventListener('change',e=>{if(propertyPreviewUrl)URL
 $('.modal-close', $('#propertyModal')).addEventListener('click',()=>{if(propertyPreviewUrl)URL.revokeObjectURL(propertyPreviewUrl);propertyPreviewUrl='';prepareAddProperty();$('#propertyModal').close();});
 $('#propertyForm').addEventListener('submit',async e=>{const form=e.currentTarget;if(e.submitter?.value==='cancel'){if(propertyPreviewUrl)URL.revokeObjectURL(propertyPreviewUrl);propertyPreviewUrl='';prepareAddProperty();return;}e.preventDefault();try{await submitProperty(form);form.closest('dialog').close();if(propertyPreviewUrl)URL.revokeObjectURL(propertyPreviewUrl);propertyPreviewUrl='';prepareAddProperty();}catch(error){toast(error.message||'Could not save property.');}});
 $('#tenantForm').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();try{await submitTenant(e.currentTarget);e.currentTarget.closest('dialog').close();e.currentTarget.reset();}catch(error){toast(error.message||'Could not invite tenant.');}});
+$('#tenantForm').elements.start_date.addEventListener('change',populateTenantUnits);$('#tenantForm').elements.end_date.addEventListener('change',populateTenantUnits);
 $('#caretakerForm').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();try{await submitCaretaker(e.currentTarget);e.currentTarget.closest('dialog').close();e.currentTarget.reset();}catch(error){toast(error.message||'Could not invite caretaker.');}});
 $('#agreementForm').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();const button=e.submitter;button.disabled=true;try{await submitAgreement(e.currentTarget);e.currentTarget.closest('dialog').close();e.currentTarget.reset();}catch(error){toast(error.message||'Could not send agreement.');}finally{button.disabled=false;}});
 $('#maintenanceForm').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();try{await submitMaintenance(e.currentTarget);e.currentTarget.closest('dialog').close();e.currentTarget.reset();}catch(error){toast(error.message||'Could not save request.');}});

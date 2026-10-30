@@ -44,13 +44,13 @@ Deno.serve(async (req) => {
       if (!unit) return json({ error: 'The selected unit was not found.' }, 400);
       const { data: owned } = await admin.from('properties').select('id').eq('id', unit.property_id).eq('landlord_id', authData.user.id).maybeSingle();
       if (!owned) return json({ error: 'You can only assign tenants to your own properties.' }, 403);
-      const { data: existingLease } = await admin.from('leases').select('id').eq('unit_id', unitId).neq('status', 'ended').limit(1).maybeSingle();
-      if (existingLease) return json({ error: 'That unit already has a current or pending tenant. Choose another unit.' }, 409);
       const startDate = String(body.start_date ?? '');
       const endDate = String(body.end_date ?? '');
       if (!startDate || !endDate || endDate < startDate || Number(body.annual_rent) < 0) {
         return json({ error: 'Enter a valid lease period and annual rent.' }, 400);
       }
+      const { data: existingLease } = await admin.from('leases').select('id').eq('unit_id', unitId).neq('status', 'ended').lte('start_date', endDate).gte('end_date', startDate).limit(1).maybeSingle();
+      if (existingLease) return json({ error: 'That unit has a lease overlapping these dates. Choose another unit or change the lease period.' }, 409);
     } else {
       propertyIds = Array.isArray(body.property_ids) ? [...new Set(body.property_ids.map(String))] : [];
       if (!propertyIds.length) return json({ error: 'Assign the caretaker to at least one property.' }, 400);
