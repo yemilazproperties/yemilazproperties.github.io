@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#f6f5f0" />
   <title>Yemilaz Properties — Property management</title>
+  <link rel="icon" type="image/svg+xml" href="brand-icon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -13,7 +14,7 @@
 <body>
   <div class="auth-gate" id="authGate" hidden>
     <section class="auth-card">
-      <a class="brand auth-brand" href="#"><span class="brand-mark">Y</span><span>Yemilaz Properties<span class="brand-dot">.</span></span></a>
+      <a class="brand auth-brand" href="#" aria-label="Yemilaz Properties"><img class="brand-wordmark" src="yemilaz-properties-logo.png" alt="Yemilaz Properties" /></a>
       <p class="eyebrow">YOUR PROPERTY WORKSPACE</p><h1 id="authTitle">Welcome back</h1>
       <p class="subheading" id="authSubtitle">Sign in to manage your properties and team.</p>
       <form id="loginForm" class="login-form"><label>Email address<input type="email" name="email" required autocomplete="email" placeholder="you@example.com" /></label><label>Password<input type="password" name="password" required autocomplete="current-password" placeholder="Enter your password" /></label><button class="button button-primary" type="submit">Sign in <span>→</span></button><p class="auth-error" id="authError" aria-live="polite"></p><button class="auth-help" id="resetPassword" type="button">Forgot password?</button></form>
@@ -25,7 +26,7 @@
   </div>
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
-      <a class="brand" href="#overview" aria-label="Yemilaz Properties home"><span class="brand-mark">Y</span><span>Yemilaz Properties<span class="brand-dot">.</span></span></a>
+      <a class="brand" href="#overview" aria-label="Yemilaz Properties home"><img class="brand-mark" src="brand-icon.svg" alt="" /><span>Yemilaz Properties<span class="brand-dot">.</span></span></a>
       <div class="workspace-switch"><span class="workspace-icon">⌂</span><span><b>Yemil Properties</b><small>Landlord workspace</small></span><span class="chevron">⌄</span></div>
       <nav class="main-nav" aria-label="Main navigation">
         <p class="nav-label" data-nav-label="workspace">WORKSPACE</p>
