@@ -88,7 +88,7 @@ async function renderProperties(filter=''){
     const caretakers=state.assignments.filter(a=>a.property_id===p.id).map(a=>personBy(a.caretaker_id)?.full_name).filter(Boolean).join(', ')||'No caretaker assigned';
     const photo=imageUrls[i];
     return `<article class="property-card"><div class="card-image thumb-${['one','two','three'][i%3]}${photo?' has-photo':''}">${photo?`<img src="${esc(photo)}" alt="Photo of ${esc(p.name)}" loading="lazy">`:''}<span class="card-type">${esc((p.property_type||'house').replace('_',' ').toUpperCase())}</span>${state.profile?.role==='landlord'?`<button class="property-edit-button" type="button" data-action="property-edit" data-id="${esc(p.id)}">Edit</button>`:''}</div><div class="property-card-body"><h3>${esc(p.name)}</h3><p>⌖ &nbsp;${esc([p.address,p.city].filter(Boolean).join(', '))}</p><div class="card-stats"><span><b>${units.length}</b> total units</span><span><b>${units.filter(u=>occupied.has(u.id)).length}</b> occupied</span></div><div class="card-footer"><span>${money(p.monthly_rent)} <small style="font-weight:400;color:#929a92">/ month</small></span><small>${esc(caretakers)}</small></div></div></article>`;
-  }).join('')||'<p class="muted">No properties yet. Use “Add property” to create your first record.</p>';
+  }).join('')||(state.properties.length?'<div class="empty-state"><p>No properties match the current search or filters.</p><button class="button button-secondary" type="button" data-action="property-clear-filters">Show all properties</button></div>':'<p class="muted">No properties yet. Use “Add property” to create your first record.</p>');
   $('#propertyCount').textContent=`${list.length} properties`;
   const count=$('.nav-link[data-view="properties"] em');if(count)count.textContent=state.properties.length;
   const filterTypes=$('#propertyTypeFilter')?.value||'';const filterCity=$('#propertyCityFilter')?.value||'';
@@ -161,18 +161,27 @@ function populateSelects(){
   const maintenanceUnits=$('#maintenanceUnitSelect');if(maintenanceUnits)maintenanceUnits.innerHTML=optionMarkup(state.units,u=>unitLabel(u))||'<option value="">Add a property and unit first</option>';
 }
 function populateTenantUnits(){
-  const select=$('#tenantUnitSelect');if(!select)return;
+  const select=$('#tenantUnitSelect'),propertySelect=$('#tenantPropertySelect');if(!select||!propertySelect)return;
   const form=$('#tenantForm'),start=form?.elements.start_date.value||today(),end=form?.elements.end_date.value||'';
   const hasValidDates=!end||end>=start;
-  const available=state.units.filter(unit=>hasValidDates&&!state.leases.some(lease=>{
+  const isAvailable=unit=>hasValidDates&&!state.leases.some(lease=>{
     if(lease.unit_id!==unit.id||lease.status==='ended')return false;
     // A lease only reserves a unit when its dates overlap the dates being invited.
     return (!end||lease.start_date<=end)&&(!start||lease.end_date>=start);
-  }));
-  select.innerHTML=available.length?optionMarkup(available,unitLabel):'<option value="" selected disabled>No units available for these dates</option>';
+  });
+  const available=state.units.filter(isAvailable);
+  const properties=state.properties.filter(property=>available.some(unit=>unit.property_id===property.id));
+  const previousProperty=propertySelect.value;
+  propertySelect.innerHTML=properties.length?optionMarkup(properties,property=>property.name):'<option value="" selected disabled>No property has an available unit</option>';
+  if(properties.some(property=>property.id===previousProperty))propertySelect.value=previousProperty;
+  const propertyId=propertySelect.value;
+  const propertyUnits=available.filter(unit=>unit.property_id===propertyId);
+  const previousUnit=select.value;
+  select.innerHTML=propertyUnits.length?optionMarkup(propertyUnits,unit=>unit.unit_name||'Unit'):'<option value="" selected disabled>No unit available in this property</option>';
+  if(propertyUnits.some(unit=>unit.id===previousUnit))select.value=previousUnit;
   const hint=$('#tenantUnitHint'),button=$('#inviteTenantButton');
-  if(hint)hint.textContent=!hasValidDates?'Lease end date must be on or after its start date.':available.length?'Only units available for the selected lease dates are listed.':state.units.length?'No units are free for these lease dates. Change the dates or end the existing lease.':'Add a property with at least one unit before inviting a tenant.';
-  if(button)button.disabled=available.length===0;
+  if(hint)hint.textContent=!hasValidDates?'Lease end date must be on or after its start date.':available.length?'Choose a property and unit available for the selected lease dates.':state.units.length?'No units are free for these lease dates. Change the dates or end the existing lease.':'Add a property with at least one unit before inviting a tenant.';
+  if(button)button.disabled=propertyUnits.length===0;
 }
 function prepareTenantInvite(){
   const form=$('#tenantForm');if(!form)return;
@@ -258,6 +267,7 @@ async function submitProperty(form){
     try{path=await uploadPropertyPhoto(p.id,file);const {error:imageError}=await client().from('properties').update({image_path:path}).eq('id',p.id);if(imageError)throw imageError;}
     catch(error){if(path)await client().storage.from('property-images').remove([path]);await loadWorkspace();throw new Error(`Property and units were saved, but its photo was not. You can edit the property and try again. ${propertySchemaError(error).message}`);}
   }
+  $('#propertySearch').value='';$('#propertyTypeFilter').value='';$('#propertyCityFilter').value='';
   await loadWorkspace();toast('Property and units saved.');
 }
 async function invokeFunction(name,body){const {data,error}=await client().functions.invoke(name,{body});if(error)throw new Error(`${name} function: ${error.message}. Deploy the function and set its Supabase secrets.`);if(data?.error)throw new Error(data.error);return data;}
@@ -282,6 +292,7 @@ async function submitPayment(form){const d=new FormData(form),tenant=state.profi
 
 async function actionClick(event){const button=event.target.closest('[data-action]');if(!button)return;const {action,id}=button.dataset;
   try{
+    if(action==='property-clear-filters'){$('#propertySearch').value='';$('#propertyTypeFilter').value='';$('#propertyCityFilter').value='';renderProperties('');return;}
     if(action==='property-edit'){if(state.profile?.role!=='landlord')throw new Error('Only the landlord can edit properties.');const property=propertyBy(id);if(!property)throw new Error('Property not found.');await prepareEditProperty(property);}
     if(action==='agreement-open'){const a=state.agreements.find(x=>x.id===id);if(!a)throw new Error('Agreement not found.');const tab=window.open('about:blank','_blank');const {data,error}=await client().storage.from('rental-agreements').createSignedUrl(a.storage_path,120);if(error){tab?.close();throw error;}if(tab){tab.opener=null;tab.location=data.signedUrl;}else toast('Your browser blocked the new tab. Allow pop-ups and try again.');}
     if(action==='agreement-sign'){const signedName=prompt('Type your full legal name to acknowledge this agreement:');if(!signedName?.trim())return;const {error}=await client().from('agreements').update({status:'tenant_signed',signed_name:signedName.trim()}).eq('id',id);if(error)throw error;await loadWorkspace();toast('Your acknowledgement was recorded.');}
@@ -322,6 +333,7 @@ $('.modal-close', $('#propertyModal')).addEventListener('click',()=>{if(property
 $('#propertyForm').addEventListener('submit',async e=>{const form=e.currentTarget;if(e.submitter?.value==='cancel'){if(propertyPreviewUrl)URL.revokeObjectURL(propertyPreviewUrl);propertyPreviewUrl='';prepareAddProperty();return;}e.preventDefault();try{await submitProperty(form);form.closest('dialog').close();if(propertyPreviewUrl)URL.revokeObjectURL(propertyPreviewUrl);propertyPreviewUrl='';prepareAddProperty();}catch(error){toast(error.message||'Could not save property.');}});
 $('#tenantForm').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();try{await submitTenant(e.currentTarget);e.currentTarget.closest('dialog').close();e.currentTarget.reset();}catch(error){toast(error.message||'Could not invite tenant.');}});
 $('#tenantForm').elements.start_date.addEventListener('change',populateTenantUnits);$('#tenantForm').elements.end_date.addEventListener('change',populateTenantUnits);
+$('#tenantPropertySelect').addEventListener('change',populateTenantUnits);
 $('#caretakerForm').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();try{await submitCaretaker(e.currentTarget);e.currentTarget.closest('dialog').close();e.currentTarget.reset();}catch(error){toast(error.message||'Could not invite caretaker.');}});
 $('#agreementForm').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();const button=e.submitter;button.disabled=true;try{await submitAgreement(e.currentTarget);e.currentTarget.closest('dialog').close();e.currentTarget.reset();}catch(error){toast(error.message||'Could not send agreement.');}finally{button.disabled=false;}});
 $('#maintenanceForm').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();try{await submitMaintenance(e.currentTarget);e.currentTarget.closest('dialog').close();e.currentTarget.reset();}catch(error){toast(error.message||'Could not save request.');}});
