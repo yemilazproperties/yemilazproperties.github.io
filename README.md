@@ -24,7 +24,7 @@ Open `http://localhost:8000`. Keep PowerShell open while using the local site. P
 
 ## Supabase setup
 
-1. This package targets Supabase project `qghumlekxybfndcrkgqk` in `eu-west-1`. Before publishing, replace `PASTE_CORRECT_PROJECT_PUBLISHABLE_KEY_HERE` in `config.js` with that project's publishable key from **Settings → API Keys**. Use the `sb_publishable_...` key, never a service-role/secret key.
+1. This package targets Supabase project `qghumlexkybfndcrkgqk` in `eu-west-1`. Before publishing, replace `sb_publishable_zD3Ht0N3IA_AKLpCDfYP9A_UhNKhE1f` in `config.js` with that project's publishable key from **Settings → API Keys**. Use the `sb_publishable_...` key, never a service-role/secret key.
 2. For a new Supabase project, run `supabase/schema.sql`. For the existing Yemilaz Properties project, run `supabase/property-images-migration.sql` instead; it adds the property fields required by this version and configures the private photo bucket and policies while preserving existing records. Do not rerun the full schema on the existing project just to fix a property field.
 3. Confirm your own profile role is `landlord` in `public.profiles`. If needed, run this with your own email:
 
@@ -42,9 +42,9 @@ Install the Supabase CLI, then run these commands from this folder after signing
 
 ```powershell
 supabase login
-supabase functions deploy invite-member --project-ref qghumlekxybfndcrkgqk
-supabase functions deploy notify-agreement --project-ref qghumlekxybfndcrkgqk
-supabase secrets set 'SITE_URL=https://yemilazproperties.github.io' 'RESEND_API_KEY=re_your_actual_key' 'EMAIL_FROM=Yemilaz Properties <notices@your-verified-domain.com>' --project-ref qghumlekxybfndcrkgqk
+supabase functions deploy invite-member --project-ref qghumlexkybfndcrkgqk
+supabase functions deploy notify-agreement --project-ref qghumlexkybfndcrkgqk
+supabase secrets set 'SITE_URL=https://yemilazproperties.github.io' 'RESEND_API_KEY=re_your_actual_key' 'EMAIL_FROM=Yemilaz Properties <notices@your-verified-domain.com>' --project-ref qghumlexkybfndcrkgqk
 ```
 
 Supabase supplies `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to deployed Edge Functions. Do not paste the service-role key into GitHub or `config.js`. If you are not using Resend yet, `invite-member` can send Supabase Auth invitations after SMTP is set; agreement email notices will wait until the Resend secrets are configured.
